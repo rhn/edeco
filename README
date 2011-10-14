@@ -1,0 +1,19 @@
+fuc decompiler.
+Requires Python 2.7+
+
+What it does:
+insert function headers
+find call addresses
+find store addresses in simple cases
+generate pseudocode for store instructions
+
+What it can easily do:
+find load/iowr/iost addresses in simple cases
+find address write/read counts/instructions
+
+What it could do with more effort:
+Find functions automatically
+Find control flow: if, if..else, if (...||...)
+Emulate known instructions
+Find load/store values incl. arithmetics (my favorite)
+Take into account custom memory labels
