@@ -2,6 +2,7 @@
 
 import sys
 from instructions import Instruction
+from flow import Function
 import memory
 import operations
 import argparse
@@ -32,6 +33,7 @@ def get_instr_index(address, instructions):
     else:
         raise NotFound
 
+
 def parse_line(disasmline):
     addr = disasmline[:8]
     code = disasmline[instruction_offset:]
@@ -40,7 +42,8 @@ def parse_line(disasmline):
     operands = spl[1:]
     return Instruction(addr, mnemonic, operands)
 
-def find_functions(parsed_code):
+
+def find_function_addresses(parsed_code):
     '''returns ints'''
     function_addrs = []
 
@@ -50,16 +53,18 @@ def find_functions(parsed_code):
     return set(function_addrs)
 
 
-def mark_flow(instructions, function_addrs):
+def find_functions(instructions, function_addrs):
+    functions = []
     instr_index = 0
     for address in sorted(function_addrs):
+        print hex(address)
         if start_vram <= address <= end_vram:
             while instructions[instr_index].addrtoint() != address:
                 instr_index += 1
-            instr = instructions[instr_index]
-            instr.set_function_entry()
+            functions.append(Function(instructions, instr_index))
         else:
             print 'function not in this segment:', hex(address)
+    return functions
 
 
 def find_memory_structures(instructions, data_SRAM):
@@ -84,7 +89,7 @@ def find_memory_structures(instructions, data_SRAM):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="decompile fuc")
     parser.add_argument('-o', '--asmoffset', type=int, default=28, help='asm instruction offset')
-    parser.add_argument('-g', '--greedy', action='store_true', default=True, help='try to encapsulate all code in functions')
+    parser.add_argument('-g', '--greedy', action='store_true', default=False, help='try to encapsulate all code in functions')
     parser.add_argument('deasm', type=str, help='input deasm file')
     parser.add_argument('deco', type=str, help='output decompiled file')
     args = parser.parse_args()
@@ -102,10 +107,25 @@ if __name__ == '__main__':
 
     start_vram = instructions[0].addrtoint()
     end_vram = instructions[-1].addrtoint()
-    print 'start', hex(start_vram), 'end', hex(end_vram)
-    function_addrs = find_functions(instructions)
 
-    mark_flow(instructions, function_addrs)
+    if args.greedy:
+        functions = []
+        index = 0
+        while index < len(instructions):
+            try:
+                f = Function(instructions, index)
+            except Exception, e:
+                import traceback
+                traceback.print_exc(e)
+                break
+            functions.append(f)
+            index += len(f.instructions)
+    else:
+        function_addrs = find_function_addresses(instructions)
+        functions = find_functions(instructions, function_addrs)
+
+    for function in functions:
+        function.mark_complete()
 
     data_SRAM = memory.FucMemoryLayout()
 

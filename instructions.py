@@ -1,4 +1,11 @@
 def parse_reg_or_imm(operand):
+    if operand.startswith('$'):
+        return operand
+    else:
+        return parse_imm(operand)
+
+
+def parse_imm(operand):
     if operand.startswith('0x'):
         return int(operand[2:], 16)
     elif operand.startswith('-0x'):
@@ -7,7 +14,7 @@ def parse_reg_or_imm(operand):
         try:
             return int(operand)
         except ValueError:
-            return operand
+            return operand    
 
 
 def parse_address(addr):
@@ -19,18 +26,20 @@ def parse_address(addr):
 class GenericInstruction:
     def __init__(self, address, mnemonic, operands):
         self.addr = address
+        self.address = self.addrtoint()
         self.mnemonic = mnemonic
         self.operands = operands
 
         self.used_in = [] # list of addresses of final instructions this one contributed to
         self.replaced_by = None # an Operation that completely replaces this instruction
         self.function_entry = None
+        self.function_finish = False
 
     def addrtoint(self):
         return int(self.addr, 16)
 
     def set_function_entry(self):
-        self.function_entry = '\n\\\\' + self.addr + '\nf_' + hex(self.addrtoint()) + '(...) {'
+        self.function_entry = '\n//' + self.addr + '\nf_' + hex(self.addrtoint()) + '(...) {'
 
     def mark_chain(self, address):
         self.used_in.append(address)
@@ -42,9 +51,10 @@ class GenericInstruction:
         if self.replaced_by is not None:
             ins = '// ' + ins + '\n' + str(self.replaced_by) + '\n'
         if self.function_entry is not None:
-            return self.function_entry + '\n' + ins
-        else:
-            return ins
+            ins = self.function_entry + '\n' + ins
+        if self.function_finish:
+            ins = ins + '\n}\n'
+        return ins
 
     def get_read_regs(self):
         raise NotImplementedError
@@ -54,6 +64,16 @@ class GenericInstruction:
 
     def emulate(self, regs):
         raise NotImplementedError
+
+
+class BRAInstruction(GenericInstruction):
+    def __init__(self, address, mnemonic, operands):
+        GenericInstruction.__init__(self, address, mnemonic, operands)
+        self.target = parse_imm(operands[-1])
+        if len(operands) == 1:
+            self.condition = ''
+        else:
+            self.condition = parse_imm(operands[0])
 
 
 class LDInstruction(GenericInstruction):
@@ -116,7 +136,8 @@ class MOVInstruction(GenericInstruction):
 
 instruction_map = {'ld': LDInstruction,
                    'st': STInstruction,
-                   'mov': MOVInstruction}
+                   'mov': MOVInstruction,
+                   'bra': BRAInstruction}
 
 def Instruction(address, mnemonic, operands):
     try:
