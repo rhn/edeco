@@ -23,14 +23,20 @@ class MemoryAssignment:
     TRACEBACK_LIMIT = 10 # instructions
     def __init__(self, instructions, data_SRAM, store_index):
         self.store = instructions[store_index]
-        self.value = None
-        self.base = None
+        self.index = store_index
+        
+        # those two won't be needed
+        self.base = None # first one
+        # second one
         if isinstance(self.store.offset, int):
             self.offset = self.store.offset
         else:
             self.offset = None
+
+        self.value = None
+        self.memory = None
+
         self.code = instructions
-        self.index = store_index
         self.affected_instructions = []
         self.data_SRAM = data_SRAM
 
@@ -44,6 +50,8 @@ class MemoryAssignment:
         return int(self.store.size[1:]) / 4
     
     def traceback_base(self):
+        if self.offset is None:
+            raise NeedProperTracing
         required_registers = set([self.store.base])
         instructions = [self.store]
 
@@ -65,12 +73,13 @@ class MemoryAssignment:
             emul = Emulator(instructions[:-1])
             emul.go()
             self.base = emul.regs.get(self.store.base)
+            size = int(self.store.size[1:]) / 8
+            self.memory = self.data_SRAM.get_memory(self.base, self.offset, size)
             self.affected_instructions = instructions[:-1]
     
     def __str__(self):
-        target = self.data_SRAM.get_access_name(self.base, self.offset)
         if self.value == None:
             value = self.store.source
         else:
             value = self.value
-        return '{0} = {1};'.format(target, value)
+        return '{0} = {1};'.format(str(self.memory), value)

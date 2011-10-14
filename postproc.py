@@ -72,17 +72,13 @@ def find_memory_structures(instructions, data_SRAM):
     
     for candidate in write_candidates:
         candidate.traceback_base()
-        base, offset = candidate.base, candidate.offset
-        if base is not None:
-            field = memory.Variable(candidate.get_memory_size())
-            try:
-                struct = data_SRAM.get_member(base)
-            except KeyError:
-                struct = memory.Structure()
-            struct.add_member(offset, field);
-            data_SRAM.add_member(base, struct)
-            
+
+    memory_structure = data_SRAM.find_structure()
+    
+    for candidate in write_candidates:
+        if candidate.memory is not None:
             candidate.mark_complete()
+    return memory_structure
 
 
 if __name__ == '__main__':
@@ -111,9 +107,9 @@ if __name__ == '__main__':
 
     mark_flow(instructions, function_addrs)
 
-    data_SRAM = memory.DataSpace()
+    data_SRAM = memory.FucMemoryLayout()
 
-    find_memory_structures(instructions, data_SRAM)
+    memory_structure = find_memory_structures(instructions, data_SRAM)
 
     '''
     if len(sys.argv) > 3:
@@ -122,6 +118,6 @@ if __name__ == '__main__':
     '''
 
     with open(args.deco, 'w') as output:
-        output.write(data_SRAM.to_str())
+        output.write(str(memory_structure))
         strings = [str(instr) for instr in instructions]
         output.write('\n'.join(strings))
