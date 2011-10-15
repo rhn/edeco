@@ -56,9 +56,9 @@ class Closure:
             print current_forward_references
             if linear_start_index is not None: # was in linear flow mode
                 # commit results
-                print 'linear', linear_start_index, joinsplit.index
+                print 'linear', linear_start_index, joinsplit.index, self.instructions[linear_start_index]
                 if linear_start_index != joinsplit.index:
-                    control_structures.append(LinearCode(self.instructions[linear_start_index:joinsplit.index + 1]))
+                    control_structures.append(LinearCode(self.instructions[linear_start_index:joinsplit.index]))
 
                 # switch modes
                 linear_start_index = None
@@ -90,7 +90,7 @@ class Closure:
                 subjoinsplits = joinsplits[flow_control_joinsplit_index:i + 1]
                 instructions_start_index = subjoinsplits[0].index
                 instructions_end_index = subjoinsplits[-1].index
-                subinstructions = self.instructions[instructions_start_index:instructions_end_index + 1]
+                subinstructions = self.instructions[instructions_start_index:instructions_end_index]
 
                 for joinsplit in subjoinsplits:
                     joinsplit.index -= instructions_start_index
@@ -224,5 +224,8 @@ def jumps_to_joinsplits(jumps):
         joinsplits.append(Split(source + 1, destination, conditional))
         joinsplits.append(Join(destination, source + 1))
 
-    # Phase 2: linearize according to the code layout
-    return sorted(joinsplits, key=lambda x: x.index)
+    # Phase 2: linearize according to the code layout and put splits before joins
+    def keyfunction(splitjoin):
+        return splitjoin.index, isinstance(splitjoin, Join) # True will put it later
+            
+    return sorted(joinsplits, key=keyfunction)
