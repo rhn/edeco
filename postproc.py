@@ -2,7 +2,7 @@
 
 import sys
 from instructions import Instruction
-from flow import Function
+from flow import Function, FunctionBoundsException
 import memory
 import operations
 import argparse
@@ -111,21 +111,16 @@ if __name__ == '__main__':
     if args.greedy:
         functions = []
         index = 0
-        while index < len(instructions):
-            try:
+        try:
+            while index < len(instructions):
                 f = Function(instructions, index)
-            except Exception, e:
-                import traceback
-                traceback.print_exc(e)
-                break
-            functions.append(f)
-            index += len(f.instructions)
+                functions.append(f)
+                index += len(f.instructions)
+        except FunctionBoundsException, e:
+            print e
     else:
         function_addrs = find_function_addresses(instructions)
         functions = find_functions(instructions, function_addrs)
-
-    for function in functions:
-        function.mark_complete()
 
     data_SRAM = memory.FucMemoryLayout()
 
@@ -139,5 +134,5 @@ if __name__ == '__main__':
 
     with open(args.deco, 'w') as output:
         output.write(str(memory_structure))
-        strings = [str(instr) for instr in instructions]
-        output.write('\n'.join(strings))
+        for function in functions:
+            output.write(str(function))

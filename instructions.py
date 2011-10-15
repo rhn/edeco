@@ -32,14 +32,9 @@ class GenericInstruction:
 
         self.used_in = [] # list of addresses of final instructions this one contributed to
         self.replaced_by = None # an Operation that completely replaces this instruction
-        self.function_entry = None
-        self.function_finish = False
 
     def addrtoint(self):
         return int(self.addr, 16)
-
-    def set_function_entry(self):
-        self.function_entry = '\n//' + self.addr + '\nf_' + hex(self.addrtoint()) + '(...) {'
 
     def mark_chain(self, address):
         self.used_in.append(address)
@@ -50,10 +45,6 @@ class GenericInstruction:
             ins = ins + ' // ' + ' '.join(self.used_in)
         if self.replaced_by is not None:
             ins = '// ' + ins + '\n' + str(self.replaced_by) + '\n'
-        if self.function_entry is not None:
-            ins = self.function_entry + '\n' + ins
-        if self.function_finish:
-            ins = ins + '\n}\n'
         return ins
 
     def get_read_regs(self):
