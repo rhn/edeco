@@ -75,8 +75,8 @@ class LDInstruction(GenericInstruction):
         addr = operands[2][2:-1]
         
         base, offset = parse_address(addr)
-        if not base.startswith('$r'):
-            raise Exception('wrong base ' + base + ' of ' + GenericInstruction.str(self))
+        if not (base.startswith('$r') or base.startswith('$sp')):
+            raise Exception('unsupported base ' + base + ' of ' + GenericInstruction.__str__(self))
         else:
             self.base = base
         
@@ -90,8 +90,8 @@ class STInstruction(GenericInstruction):
         addr = operands[1][2:-1]
         
         base, offset = parse_address(addr)
-        if not base.startswith('$r'):
-            raise Exception('wrong base ' + base + ' of ' + GenericInstruction.str(self))
+        if not (base.startswith('$r') or base.startswith('$sp')):
+            raise Exception('unsupported base ' + base + ' of ' + GenericInstruction.__str__(self))
         else:
             self.base = base
         

@@ -62,11 +62,8 @@ class ControlStructure(FlowContainer):
 
         for item in list(mess):
             for joinsplit in left_joinsplits:
-                try:
-                    if item.matches(joinsplit):
-                        mess.add(joinsplit)
-                except TypeError:
-                    pass
+                if item.matches(joinsplit):
+                    mess.add(joinsplit)
 
         # step 2: find spaces between all the jumps
         splitjoin_indices = [] # first, last pairs
@@ -163,11 +160,9 @@ class Closure(FlowContainer):
             elif joinsplit.get_referenced_index() < joinsplit.index: # backward reference. remove the other one
                 reference_index = None
                 for y, reference in enumerate(current_forward_references):
-                    try:
-                        if reference.matches(joinsplit):
-                            reference_index = y
-                    except:
-                        pass
+                    if reference.matches(joinsplit):
+                        reference_index = y
+
                 if reference_index is None:
                     raise FlowDetectError("A past jumpsplit referred to can't be found: {0}".format(joinsplit))
                 current_forward_references.pop(reference_index)
@@ -277,7 +272,7 @@ class Split:
 
     def matches(self, join):
         if not isinstance(join, Join):
-            raise TypeError
+            return False
         return join.source == self.index
 
     def offset(self, offset):
@@ -317,7 +312,7 @@ class Join:
 
     def matches(self, split):
         if not isinstance(split, Split):
-            raise TypeError
+            return False
         return split.index == self.source
 
     def offset(self, offset):

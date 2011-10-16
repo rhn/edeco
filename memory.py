@@ -16,6 +16,7 @@ class MemoryLayout:
         """Returns MemoryStructure"""
         raise NotImplementedError
 
+
 class FucMemoryLayout(MemoryLayout):
     """Memory access model for fuc. Assumes no unions"""
     def __init__(self):
@@ -49,11 +50,15 @@ class FucMemoryLayout(MemoryLayout):
             if len(all_offsets) == 1 and list(sorted(all_offsets))[0] == 0:
                 memory_structure.add_member(baseaddr, Variable(cell))
             else:
-                struct = Structure()
-                memory_structure.add_member(baseaddr, struct)
+                try:
+                    struct = memory_structure.get_member(baseaddr)
+                except KeyError:
+                    struct = Structure()
+                    memory_structure.add_member(baseaddr, struct)
                 struct.add_member(offset, Variable(cell))
 
         return memory_structure
+
 
 class MemoryStructure:
     """Decompiled and analyzed version of the layout"""
@@ -67,7 +72,7 @@ class MemoryStructure:
 
     def add_member(self, member_address, member):
         if member_address in self.members:
-            raise ValueError('Member already here')
+            raise ValueError('Member already here ' + str(member_address))
 
         member.parent = self
         self.members[member_address] = member
