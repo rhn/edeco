@@ -54,6 +54,7 @@ class ControlStructure(FlowContainer):
                 for item in mess:
                     if joinsplit.intersects(item):
                         intersections.add(joinsplit)
+                        print 'i', joinsplit, item
 
             if not intersections:
                 break
@@ -87,11 +88,12 @@ class ControlStructure(FlowContainer):
             if instructions:
                 splitjoin_slices.append((sjs, instructions, offset))
         
-        '''print splitjoin_indices
-        print zip(*splitjoin_slices)[0]
         
-        #raw_input()
-        '''
+        print joinsplits
+        print zip(*splitjoin_slices)[0]
+        print sorted(mess)
+        raw_input()
+        
         # step 4: generate closures
         closures = []
         
@@ -282,6 +284,8 @@ class Split:
     def intersects(self, other):
         # be super extra careful with that
         if isinstance(other, Split):
+            if self.destination == other.destination: # two jumps to the same place never intersect
+                return False
             if self.index < self.destination: # forward jump
                 start_inside = (self.index < other.index <= self.destination)
                 end_inside = (self.index <= other.destination < self.destination)        
@@ -289,6 +293,8 @@ class Split:
                 start_inside = (self.destination < other.index < self.index)
                 end_inside = (self.destination <= other.destination < self.index)
         else: # intersect with a Join
+            if self.destination == other.index: # two jumps to the same place never intersect
+                return False
             if self.index < self.destination: # forward jump
                 start_inside = (self.index < other.source <= self.destination)
                 end_inside = (self.index <= other.index < self.destination)
@@ -321,6 +327,8 @@ class Join:
 
     def intersects(self, other):
         if isinstance(other, Join):
+            if self.index == other.index: # two jumps to the asme place never intersect
+                return False
             if self.source < self.index: # forward jump
                 start_inside = (self.source < other.source <= self.index)
                 end_inside = (self.source <= other.index < self.index)
@@ -348,6 +356,11 @@ def jumps_to_joinsplits(jumps):
 
     # Phase 2: linearize according to the code layout and put splits before joins
     def keyfunction(splitjoin):
-        return splitjoin.index, isinstance(splitjoin, Join) # True will put it later
+        isjoin = isinstance(splitjoin, Join) # True will put it later
+        if isjoin:
+            order = -splitjoin.source # joins with earlier source are outer
+        else:
+            order = -splitjoin.destination # joins further out are earlier
+        return splitjoin.index, isjoin, order
             
     return sorted(joinsplits, key=keyfunction)
