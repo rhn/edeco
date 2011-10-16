@@ -112,7 +112,7 @@ class ControlStructure(FlowContainer):
         if self.flow is None:
             return 'FlowPattern {{{{\n{0}\n}}}}'.format(indent(str(LinearCode(self.instructions))))
         else:
-            return 'FlowPattern {{{{ {1}\n{0}\n}}}}'.format(FlowContainer.__str__(self), hex(self.instructions[0].address))
+            return 'FlowPattern {{{{\n{0}\n}}}}'.format(FlowContainer.__str__(self))
 
 
 class LinearCode:
@@ -201,7 +201,7 @@ class Closure(FlowContainer):
         self.flow = control_structures
 
     def __str__(self):
-        return '{{ {1}\n{0}\n}}'.format(FlowContainer.__str__(self), hex(self.instructions[0].address))
+        return '{{\n{0}\n}}'.format(FlowContainer.__str__(self))
 
 
 class Function(Closure):
