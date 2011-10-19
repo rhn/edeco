@@ -5,22 +5,45 @@ class Registers:
     def get(self, name):
         return self.gp[int(name[2:])]
 
-    def set_(self, name, value):
+    def set(self, name, value):
         self.gp[int(name[2:])] = value
 
 
-class Emulator:
-    def __init__(self, instructions):
-        self.instructions = instructions
+class MachineState:
+    def __init__(self):
         self.regs = Registers()
 
-    def go(self):
-        for instruction in self.instructions:
-            instruction.emulate(self.regs)
+    def read_reg(self, reg_spec):
+        return self.regs.get(reg_spec)
+    
+    def write_reg(self, reg_spec, value):
+        return self.regs.set(reg_spec, value)
+    
+
+class TrackingMachineState(MachineState):
+    """A MachineState that in addition to normal emulation capabilities additionally tracks reads and writes.
+    """
+    def __init__(self):
+        MachineState.__init__(self)
+        self.read_places = set()
+        self.written_places = set()
+
+    def read_reg(self, reg_spec):
+        self.read_places.add(reg_spec)
+        return MachineState.read_reg(self, reg_spec)
+
+    def write_reg(self, reg_spec, value):
+        self.written_places.add(reg_spec)
+        return MachineState.write_reg(self, reg_spec, value)
+
+    def get_read_places(self):
+        return self.read_places
+    
+    def get_written_places(self):
+        return self.written_places
 
 
 class MemoryAssignment:
-    TRACEBACK_LIMIT = 10 # instructions
     def __init__(self, instructions, data_SRAM, store_index):
         self.store = instructions[store_index]
         self.index = store_index
@@ -57,10 +80,12 @@ class MemoryAssignment:
 
         index = self.index - 1
 
-        while index > 0 and self.index - self.TRACEBACK_LIMIT <= index and required_registers:
+        while index > 0 and required_registers:
             try:
                 instruction = self.code[index]
                 satisfied_regs = set(instruction.get_modified_regs()).intersection(required_registers)
+                instruction.get_modified_regs()
+
                 if satisfied_regs: # relevant to getting the data
                     required_registers.difference_update(satisfied_regs)
                     required_registers.update(set(instruction.get_read_regs()))
@@ -69,10 +94,12 @@ class MemoryAssignment:
             except NotImplementedError:
                 print instruction.mnemonic, 'is not supported yet'
                 return
+
         if len(required_registers) == 0:
-            emul = Emulator(instructions[:-1])
-            emul.go()
-            self.base = emul.regs.get(self.store.base)
+            state = MachineState()
+            for instruction in instructions:
+                instruction.evaluate(state)
+            self.base = state.regs.get(self.store.base)
             size = int(self.store.size[1:]) / 8
             self.memory = self.data_SRAM.get_memory(self.base, self.offset, size)
             self.affected_instructions = instructions[:-1]

@@ -1,3 +1,6 @@
+import operations
+
+
 def parse_reg_or_imm(operand):
     if operand.startswith('$'):
         return operand
@@ -30,6 +33,10 @@ class GenericInstruction:
         self.mnemonic = mnemonic
         self.operands = operands
 
+        # a little bridge to make an Instruction closer to a small Operation
+        self.operation_result = None
+
+        # get rid of these eventually. replacement will be handled in a structured manner
         self.used_in = [] # list of addresses of final instructions this one contributed to
         self.replaced_by = None # an Operation that completely replaces this instruction
 
@@ -47,14 +54,20 @@ class GenericInstruction:
             ins = '// ' + ins + '\n' + str(self.replaced_by) + '\n'
         return ins
 
-    def get_read_regs(self):
+    def evaluate(self, machine_state):
+        """Changes the machine state to the best of out knowledge. no return value.
+        """
         raise NotImplementedError
+
+    def get_read_regs(self):
+        state = operations.TrackingMachineState()
+        self.evaluate(state)
+        return state.get_read_places()
 
     def get_modified_regs(self):
-        raise NotImplementedError
-
-    def emulate(self, regs):
-        raise NotImplementedError
+        state = operations.TrackingMachineState()
+        self.evaluate(state)
+        return state.get_written_places()
 
 
 class BRAInstruction(GenericInstruction):
@@ -82,6 +95,7 @@ class LDInstruction(GenericInstruction):
         
         self.offset = parse_reg_or_imm(offset)
 
+
 class STInstruction(GenericInstruction):
     def __init__(self, address, mnemonic, operands):
         GenericInstruction.__init__(self, address, mnemonic, operands)
@@ -97,14 +111,9 @@ class STInstruction(GenericInstruction):
         
         self.offset = parse_reg_or_imm(offset)
 
-    def get_read_regs(self):
-        regs = [self.base, self.source]
-        if isinstance(self.offset, str):
-            regs.append(self.offset)
-        return regs
-    
-    def get_modified_regs(self):
-        return []
+    def evaluate(self, machine_state):
+        """Unfinished"""
+        machine_state.read_reg(self.source)
 
 
 class MOVInstruction(GenericInstruction):
@@ -113,16 +122,12 @@ class MOVInstruction(GenericInstruction):
         self.source = parse_reg_or_imm(operands[1])
         self.destination = operands[0]
 
-    def get_read_regs(self):
+    def evaluate(self, machine_state):
         if isinstance(self.source, str):
-            return [self.source]
-        return []
-
-    def get_modified_regs(self):
-        return [self.destination]
-
-    def emulate(self, regs):
-        regs.set_(self.destination, self.source)
+            value = machine_state.read_reg(self.source)
+        else:
+            value = self.source
+        machine_state.write_reg(self.destination, value)
 
 
 instruction_map = {'ld': LDInstruction,
