@@ -66,24 +66,34 @@ def find_functions(instructions, function_addrs):
             print 'function not in this segment:', hex(address)
     return functions
 
+class MemoryStructureInstructionAnalyzer:
+    def __init__(self):
+        self.data_SRAM = memory.FucMemoryLayout()
+        self.analyzed_operations = None
 
-def find_memory_structures(instructions, data_SRAM):
-    """This function sucks. should be split into finding memory layout and then finding roles, naming structures and whatnot.
-    """
-    write_candidates = []
-    for i, instruction in enumerate(instructions):
-        if instruction.mnemonic == 'st':
-            write_candidates.append(operations.MemoryAssignment(instructions, data_SRAM, i))
-    
-    for candidate in write_candidates:
-        candidate.traceback_base()
+    def find_memory_structures(self, functions):
+        self.analyzed_operations = []
+        for function in functions:
+            function.apply_instruction_analyzer(self.scan_instruction_block)
 
-    memory_structure = data_SRAM.find_structure()
+        memory_structure = self.data_SRAM.find_structure()
+        
+        for candidate in self.analyzed_operations:
+            if candidate.memory is not None:
+                candidate.mark_complete()
+        return memory_structure
     
-    for candidate in write_candidates:
-        if candidate.memory is not None:
-            candidate.mark_complete()
-    return memory_structure
+    def scan_instruction_block(self, instructions):
+        """This function sucks. should be split into finding memory layout and then finding roles, naming structures and whatnot.
+        """
+        write_candidates = []
+        for i, instruction in enumerate(instructions):
+            if instruction.mnemonic == 'st':
+                write_candidates.append(operations.MemoryAssignment(instructions, self.data_SRAM, i))
+        
+        for candidate in write_candidates:
+            candidate.traceback_base()
+        self.analyzed_operations.extend(write_candidates)
 
 
 if __name__ == '__main__':
@@ -122,9 +132,8 @@ if __name__ == '__main__':
         function_addrs = find_function_addresses(instructions)
         functions = find_functions(instructions, function_addrs)
 
-    data_SRAM = memory.FucMemoryLayout()
-
-    memory_structure = find_memory_structures(instructions, data_SRAM)
+    memory_analyzer = MemoryStructureInstructionAnalyzer()
+    memory_structure = memory_analyzer.find_memory_structures(functions)
 
     '''
     if len(sys.argv) > 3:

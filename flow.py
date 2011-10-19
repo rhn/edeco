@@ -19,6 +19,9 @@ class FlowDetectError(Exception):
 
 
 class FlowContainer:
+    def __init__(self):
+        self.flow = None
+
     def __str__(self):
         flow_elm_texts = []
         for flow_element in self.flow:
@@ -28,11 +31,15 @@ class FlowContainer:
 
         return flow_text
 
+    def apply_instruction_analyzer(self, analyzer):
+        for element in self.flow:
+            element.apply_instruction_analyzer(analyzer)
+
 
 class ControlStructure(FlowContainer):
     def __init__(self, code, joinsplits):
+        FlowContainer.__init__(self)
         self.instructions = code
-        self.flow = None
         self.find_closures(joinsplits)
 
     def find_closures(self, joinsplits):
@@ -54,7 +61,7 @@ class ControlStructure(FlowContainer):
                 for item in mess:
                     if joinsplit.intersects(item):
                         intersections.add(joinsplit)
-                        print 'i', joinsplit, item
+                        #print 'i', joinsplit, item
 
             if not intersections:
                 break
@@ -88,12 +95,12 @@ class ControlStructure(FlowContainer):
             if instructions:
                 splitjoin_slices.append((sjs, instructions, offset))
         
-        
+        '''
         print joinsplits
         print zip(*splitjoin_slices)[0]
         print sorted(mess)
         raw_input()
-        
+        '''
         # step 4: generate closures
         closures = []
         
@@ -117,6 +124,9 @@ class ControlStructure(FlowContainer):
 class LinearCode:
     def __init__(self, code):
         self.instructions = code
+
+    def apply_instruction_analyzer(self, analyzer):
+        return analyzer(self.instructions)
 
     def __repr__(self):
         return 'lc ' + self.instructions[0].addr + ' ' + self.instructions[-1].addr
@@ -195,7 +205,7 @@ class Closure(FlowContainer):
         if linear_start_index < len(self.instructions):
             control_structures.append(LinearCode(self.instructions[linear_start_index:]))
 
-        self.flow = control_structures
+        self.flow = control_structures    
 
     def __str__(self):
         return '{{\n{0}\n}}'.format(FlowContainer.__str__(self))
@@ -209,6 +219,7 @@ class Function(Closure):
         self.flow = None
         self.detect_flow()
 
+    # TODO: Make this a static method instead
     def find(self, code):
         """Assumes nothing will jump to the function from outside"""
         branches_outside = [] # list of target addresses
@@ -364,3 +375,4 @@ def jumps_to_joinsplits(jumps):
         return splitjoin.index, isjoin, order
             
     return sorted(joinsplits, key=keyfunction)
+
