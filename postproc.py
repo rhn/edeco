@@ -92,7 +92,7 @@ class MemoryStructureInstructionAnalyzer:
                 write_candidates.append(operations.MemoryAssignment(instructions, self.data_SRAM, i))
         
         for candidate in write_candidates:
-            candidate.traceback_base()
+            candidate.traceback()
         self.analyzed_operations.extend(write_candidates)
 
 

@@ -23,6 +23,12 @@ class FucMemoryLayout(MemoryLayout):
         self.accesses = {} # (base, offset), MemoryCell
     
     def get_memory(self, base, offset, size):
+        if not isinstance(base, int):
+            return None
+        
+        if not isinstance(offset, int): # could gather some data too
+            return None
+
         if (base, offset) in self.accesses:
             memory_cell = self.accesses[base, offset]
             if memory_cell.size != size:
@@ -71,6 +77,9 @@ class MemoryStructure:
         return self.members[member_address]
 
     def add_member(self, member_address, member):
+        '''if not isinstance(member_address, int):
+            print 'dynamic addressing not supported', member_address
+            return'''
         if member_address in self.members:
             raise ValueError('Member already here ' + str(member_address))
 
@@ -79,7 +88,7 @@ class MemoryStructure:
         member.set_name(self.get_name(member_address))
 
     def get_name(self, addr):
-        return self.members[addr].DEFAULT_PREFIX + hex(addr)            
+        return self.members[addr].DEFAULT_PREFIX + hex(addr)
 
 
 class DataSpace(MemoryStructure):

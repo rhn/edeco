@@ -69,6 +69,14 @@ class GenericInstruction:
         self.evaluate(state)
         return state.get_written_places()
 
+    def get_value(self, context, reg_spec):
+        state = operations.MachineState()
+        for reg in self.get_read_regs():
+            value = operations.traceback_register(context, reg)
+            state.regs.set(reg, value)
+        self.evaluate(state)
+        return state.regs.get(reg_spec)
+
 
 class BRAInstruction(GenericInstruction):
     def __init__(self, address, mnemonic, operands):
@@ -112,8 +120,11 @@ class STInstruction(GenericInstruction):
         self.offset = parse_reg_or_imm(offset)
 
     def evaluate(self, machine_state):
-        """Unfinished"""
+        """Unfinished - memory write"""
         machine_state.read_reg(self.source)
+        if not isinstance(self.offset, int):
+            machine_state.read_reg(self.offset)
+        machine_state.read_reg(self.base)
 
 
 class MOVInstruction(GenericInstruction):
@@ -123,7 +134,7 @@ class MOVInstruction(GenericInstruction):
         self.destination = operands[0]
 
     def evaluate(self, machine_state):
-        if isinstance(self.source, str):
+        if not isinstance(self.source, int):
             value = machine_state.read_reg(self.source)
         else:
             value = self.source

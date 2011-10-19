@@ -1,6 +1,32 @@
+def traceback_register(context, reg_spec):
+    instructions, index = context
+    index = index - 1 
+
+    while index >= 0:
+        try:
+            instruction = instructions[index]
+            if reg_spec in instruction.get_modified_regs():
+                return instruction.get_value((instructions, index), reg_spec)
+
+            index -= 1
+        except NotImplementedError:
+            print instruction.mnemonic, 'is not supported yet'
+            return UnknownValue(reg_spec)
+    return UnknownValue(reg_spec)
+    
+
+class UnknownValue:
+    def __init__(self, name):
+        self.name = name
+
+    def __str__(self):
+        return 'U' + self.name
+
+
 class Registers:
+    REGISTERS = ['$r' + str(num) for num in range(16)]
     def __init__(self):
-        self.gp = range(16)
+        self.gp = [UnknownValue(reg_name) for reg_name in self.REGISTERS]
     
     def get(self, name):
         return self.gp[int(name[2:])]
@@ -41,72 +67,40 @@ class TrackingMachineState(MachineState):
     
     def get_written_places(self):
         return self.written_places
-
+    
 
 class MemoryAssignment:
     def __init__(self, instructions, data_SRAM, store_index):
-        self.store = instructions[store_index]
+        self.instruction = instructions[store_index]
         self.index = store_index
         
-        # those two won't be needed
-        self.base = None # first one
-        # second one
-        if isinstance(self.store.offset, int):
-            self.offset = self.store.offset
-        else:
-            self.offset = None
-
-        self.value = None
+        self.base = self.instruction.base
+        self.offset = self.instruction.offset
+ 
+        self.value = self.instruction.source
         self.memory = None
 
-        self.code = instructions
+        self.instructions = instructions
         self.affected_instructions = []
         self.data_SRAM = data_SRAM
 
     def mark_complete(self):
         for instruction in self.affected_instructions:
-            instruction.mark_chain(self.store.addr)
+            instruction.mark_chain(self.instruction.addr)
 
-        self.store.replaced_by = self
+        self.instruction.replaced_by = self
 
     def get_memory_size(self):
-        return int(self.store.size[1:]) / 4
+        return int(self.instruction.size[1:]) / 8
     
-    def traceback_base(self):
-        if self.offset is None:
-            raise NeedProperTracing
-        required_registers = set([self.store.base])
-        instructions = [self.store]
+    def traceback(self):
+        self.base = self.instruction.get_value((self.instructions, self.index), self.instruction.base)
 
-        index = self.index - 1
-
-        while index > 0 and required_registers:
-            try:
-                instruction = self.code[index]
-                satisfied_regs = set(instruction.get_modified_regs()).intersection(required_registers)
-                instruction.get_modified_regs()
-
-                if satisfied_regs: # relevant to getting the data
-                    required_registers.difference_update(satisfied_regs)
-                    required_registers.update(set(instruction.get_read_regs()))
-                    instructions.insert(0, instruction)
-                index -= 1
-            except NotImplementedError:
-                print instruction.mnemonic, 'is not supported yet'
-                return
-
-        if len(required_registers) == 0:
-            state = MachineState()
-            for instruction in instructions:
-                instruction.evaluate(state)
-            self.base = state.regs.get(self.store.base)
-            size = int(self.store.size[1:]) / 8
-            self.memory = self.data_SRAM.get_memory(self.base, self.offset, size)
-            self.affected_instructions = instructions[:-1]
+        if not isinstance(self.instruction.offset, int):
+            self.offset = self.instruction.get_value((self.instructions, self.index), self.instruction.offset)
+        
+        size = self.get_memory_size()
+        self.memory = self.data_SRAM.get_memory(self.base, self.offset, size)
     
     def __str__(self):
-        if self.value == None:
-            value = self.store.source
-        else:
-            value = self.value
-        return '{0} = {1};'.format(str(self.memory), value)
+        return '{0} = {1};'.format(self.memory, self.value)
