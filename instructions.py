@@ -185,12 +185,25 @@ class ANDInstruction(GenericInstruction):
         machine_state.write_reg(self.destination, s1 & s2)
 
 
+class SETHIInstruction(GenericInstruction):
+    def __init__(self, address, mnemonic, operands):
+        GenericInstruction.__init__(self, address, mnemonic, operands)
+        self.destination = operands[0]
+        self.source = parse_imm(operands[1])
+
+    def evaluate(self, machine_state):
+        value = machine_state.read_reg(self.destination)
+        value = value & 0xFFFF | self.source
+        machine_state.write_reg(self.destination, value)
+
+
 instruction_map = {'ld': LDInstruction,
                    'st': STInstruction,
                    'mov': MOVInstruction,
                    'bra': BRAInstruction,
                    'clear': CLEARInstruction,
-                   'and': ANDInstruction}
+                   'and': ANDInstruction,
+                   'sethi': SETHIInstruction}
 
 
 def Instruction(address, mnemonic, operands):

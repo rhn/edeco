@@ -5,9 +5,20 @@ def armored(value):
         return value
 
 
+def print_prepared(value):
+    if isinstance(v1alue, int):
+        value = hex(value)
+    else:
+        value = armored(value)
+    return value
+
+
 class Value:
     def __and__(self, other):
         return BitwiseAndResult(self, other)
+
+    def __or__(self, other):
+        return BitwiseOrResult(self, other)
 
     def will_collapse(self):
         raise NotImplementedError
@@ -50,10 +61,7 @@ class BitwiseAndResult(Value):
         if isinstance(v1, int) and isinstance(v2, int):
             return str(v1 & v2)
         else:
-            if isinstance(v1, int):
-                v1 = hex(v1)
-            else:
-                v1 = armored(v1)
+
 
             if isinstance(v2, int):
                 v2 = hex(v2)
@@ -61,3 +69,22 @@ class BitwiseAndResult(Value):
                 v2 = armored(v2)
 
             return '{0} & {1}'.format(v1, v2)
+
+
+class BitwiseOrResult(Value):
+    def __init__(self, value1, value2):
+        self.v1, self.v2 = value1, value2
+
+    def will_collapse(self):
+        return isinstance(self.v1, int) and isinstance(self.v2, int)
+    
+    def __str__(self):
+        v1 = self.v1
+        v2 = self.v2
+        if isinstance(v1, int) and isinstance(v2, int):
+            return str(v1 | v2)
+        else:
+            v1 = print_prepared(v1)
+            v2 = print_prepared(v2)
+
+            return '{0} | {1}'.format(v1, v2)

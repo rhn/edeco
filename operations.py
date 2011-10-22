@@ -112,4 +112,7 @@ class MemoryAssignment:
         self.value = self.instruction.get_value((self.instructions, self.index, self.data_SRAM), self.instruction.source)
     
     def __str__(self):
-        return '{0} = {1};'.format(self.memory, self.value)
+        value = self.value
+        if isinstance(value, int):
+            value = hex(value)
+        return '{0} = {1};'.format(self.memory, value)
