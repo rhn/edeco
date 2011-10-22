@@ -60,17 +60,18 @@ class GenericInstruction:
         raise NotImplementedError
 
     def get_read_regs(self):
-        state = operations.TrackingMachineState()
+        state = operations.DummyMachineState()
         self.evaluate(state)
         return state.get_read_places()
 
     def get_modified_regs(self):
-        state = operations.TrackingMachineState()
+        state = operations.DummyMachineState()
         self.evaluate(state)
         return state.get_written_places()
 
     def get_value(self, context, reg_spec):
-        state = operations.MachineState()
+        instructions, index, memory = context
+        state = operations.MachineState(memory)
         for reg in self.get_read_regs():
             value = operations.traceback_register(context, reg)
             state.regs.set(reg, value)
@@ -103,6 +104,14 @@ class LDInstruction(GenericInstruction):
         
         self.offset = parse_reg_or_imm(offset)
 
+    def evaluate(self, machine_state):
+        offset = self.offset
+        if not isinstance(self.offset, int):
+            offset = machine_state.read_reg(self.offset)
+        base = machine_state.read_reg(self.base)
+        value = machine_state.read_mem(base, offset, self.size)
+        machine_state.write_reg(self.destination, value)
+
 
 class STInstruction(GenericInstruction):
     def __init__(self, address, mnemonic, operands):
@@ -120,11 +129,12 @@ class STInstruction(GenericInstruction):
         self.offset = parse_reg_or_imm(offset)
 
     def evaluate(self, machine_state):
-        """Unfinished - memory write"""
-        machine_state.read_reg(self.source)
+        source = machine_state.read_reg(self.source)
+        offset = self.offset
         if not isinstance(self.offset, int):
-            machine_state.read_reg(self.offset)
-        machine_state.read_reg(self.base)
+            offset = machine_state.read_reg(self.offset)
+        base = machine_state.read_reg(self.base)
+        machine_state.write_mem(base, offset, self.size, source)
 
 
 class MOVInstruction(GenericInstruction):

@@ -24,6 +24,19 @@ class UnknownValue(Value):
         return True
 
 
+class MemoryRead(Value):
+    def __init__(self, base, offset, size):
+        self.base = base
+        self.offset = offset
+        self.size = size
+
+    def will_collapse(self):
+        return True
+
+    def __str__(self):
+        return '({2})D[{0}+{1}]'.format(self.base, self.offset, self.size)
+
+
 class BitwiseAndResult(Value):
     def __init__(self, value1, value2):
         self.v1, self.v2 = value1, value2
