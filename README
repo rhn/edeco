@@ -4,17 +4,20 @@ Requires Python 2.7+
 What it does:
 insert function headers
 find call addresses
-find store addresses in simple cases
 generate pseudocode for store instructions
-find control flow structures
+find and recognize simple control flow structures
+find and label memory structures
 
 What it can easily do:
-find load/iowr/iost addresses in simple cases
-find address write/read counts/instructions
+find iowr/iost addresses
+find branch conditions
 
 What it could do with more effort:
-Find functions automatically
-recognize control flow structures
+Find loop headings
+Remove instructions fully replaced by pseudocode
+Generate most of the code
+Recognize entangled control flow
 Emulate known instructions
-Find load/store values incl. arithmetics (my favorite)
 Take into account custom memory labels and function names
+Change labels/values interactively and emulate changed versions
+Support other architectures
