@@ -35,6 +35,7 @@ class MachineState:
         self.memory = memory_structure
     
     def read_mem(self, base, offset, size):
+        size = int(size[1:]) / 8
         cell = self.memory.get_memory(base, offset, size)
         if cell is None:
             return values.MemoryRead(base, offset, size)
