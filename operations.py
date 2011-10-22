@@ -1,3 +1,5 @@
+import values
+
 def traceback_register(context, reg_spec):
     instructions, index = context
     index = index - 1 
@@ -12,21 +14,13 @@ def traceback_register(context, reg_spec):
         except NotImplementedError:
             print instruction.mnemonic, 'is not supported yet'
             return UnknownValue(reg_spec)
-    return UnknownValue(reg_spec)
-    
-
-class UnknownValue:
-    def __init__(self, name):
-        self.name = name
-
-    def __str__(self):
-        return 'U' + self.name
+    return values.UnknownValue(reg_spec)
 
 
 class Registers:
     REGISTERS = ['$r' + str(num) for num in range(16)]
     def __init__(self):
-        self.gp = [UnknownValue(reg_name) for reg_name in self.REGISTERS]
+        self.gp = [values.UnknownValue(reg_name) for reg_name in self.REGISTERS]
     
     def get(self, name):
         return self.gp[int(name[2:])]
@@ -101,6 +95,7 @@ class MemoryAssignment:
         
         size = self.get_memory_size()
         self.memory = self.data_SRAM.get_memory(self.base, self.offset, size)
+        self.value = self.instruction.get_value((self.instructions, self.index), self.instruction.source)
     
     def __str__(self):
         return '{0} = {1};'.format(self.memory, self.value)

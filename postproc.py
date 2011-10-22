@@ -66,6 +66,7 @@ def find_functions(instructions, function_addrs):
             print 'function not in this segment:', hex(address)
     return functions
 
+
 class MemoryStructureInstructionAnalyzer:
     def __init__(self):
         self.data_SRAM = memory.FucMemoryLayout()

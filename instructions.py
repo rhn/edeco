@@ -141,10 +141,30 @@ class MOVInstruction(GenericInstruction):
         machine_state.write_reg(self.destination, value)
 
 
+class CLEARInstruction(GenericInstruction):
+    def __init__(self, address, mnemonic, operands):
+        GenericInstruction.__init__(self, address, mnemonic, operands)
+        self.size = operands[0]
+        self.destination = operands[1]
+
+    def evaluate(self, machine_state):
+        if self.size == 'b32':
+            value = 0
+        else:
+            reg = machine_state.read_reg(self.destination)
+            if self.size == 'b16':
+                value = reg & 0xffff0000
+            else: # b8
+                value = reg & 0xffffff00
+        machine_state.write_reg(self.destination, value)
+
+
 instruction_map = {'ld': LDInstruction,
                    'st': STInstruction,
                    'mov': MOVInstruction,
-                   'bra': BRAInstruction}
+                   'bra': BRAInstruction,
+                   'clear': CLEARInstruction}
+
 
 def Instruction(address, mnemonic, operands):
     try:
