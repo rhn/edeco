@@ -11,11 +11,46 @@ def indent(text):
                    text.split('\n'))
 
 
+def match_events(mess, order):
+    if len(mess) != len(order):
+        return False
+
+    started_events = set()
+    for joinsplit, (event_type, event_number) in zip(mess, order):
+        if not isinstance(joinsplit, event_type):
+            return False
+        if event_number in started_events:
+            started_events.remove(event_number)
+        else:
+            started_events.add(event_number)
+    return not started_events
+
+
 class FunctionBoundsException(Exception):
     pass
 
 class FlowDetectError(Exception):
     pass
+
+
+class IFFlowType:
+    def __init__(self, branch):
+        self.branch = branch
+    
+    def to_str(self, blocks):
+        if len(blocks) != 1:
+            raise ValueError("Wrong number of blocks for an if")
+        return 'if (not branch@{0}) {1}'.format(self.branch.addr, blocks[0])
+
+
+class IFElseFlowType:
+    def __init__(self, branch):
+        self.branch = branch
+    
+    def to_str(self, blocks):
+        if len(blocks) != 2:
+            raise ValueError("Wrong number of blocks for an if-else")
+        return 'if (not branch@{0}) {1} else {2}'.format(self.branch.addr, blocks[0], blocks[1])
 
 
 class FlowContainer:
@@ -41,6 +76,7 @@ class ControlStructure(FlowContainer):
         FlowContainer.__init__(self)
         self.instructions = code
         self.find_closures(joinsplits)
+        self.find_type()
 
     def find_closures(self, joinsplits):
         """Tries to find big spaces in between the outermost entangled mess of jumps.
@@ -109,14 +145,42 @@ class ControlStructure(FlowContainer):
                 splitjoin.offset(instruction_offset)
             closures.append(Closure(instructions, sjs))
         
+        self.mess = mess
         self.flow = closures        
+
+    def find_type(self):
+        def keyfunction(splitjoin):
+            isjoin = isinstance(splitjoin, Join) # True will put it later
+            if isjoin:
+                order = -splitjoin.source # joins with earlier source are outer
+            else:
+                order = -splitjoin.destination # joins further out are earlier
+            return splitjoin.index, isjoin, order
+
+        mess = sorted(self.mess, key=keyfunction)
+        
+        # try if..
+        events = [(Split, 0), (Join, 0)]
+        if match_events(mess, events):
+            self.type = IFFlowType(mess[0].cause)
+        else:
+            # try if..else
+            events = [(Split, 0), (Split, 1), (Join, 0), (Join, 1)]
+            if match_events(mess, events):
+                self.type = IFElseFlowType(mess[0].cause)
+            else:
+                self.type = None
+            
 
     def __repr__(self):
         return 'cs ' + self.instructions[0].addr + ' ' + self.instructions[-1].addr
 
     def __str__(self):
+        if self.type is not None:
+            return self.type.to_str(self.flow)
+
         if self.flow is None:
-            return 'FlowPattern {{{{\n{0}\n}}}}'.format(indent(str(LinearCode(self.instructions))))
+            return 'UnparsedFlowPattern {{{{\n{0}\n}}}}'.format(indent(str(LinearCode(self.instructions))))
         else:
             return 'FlowPattern {{{{\n{0}\n}}}}'.format(FlowContainer.__str__(self))
 
@@ -262,7 +326,7 @@ class Function(Closure):
                 source = self.get_index(instruction.address)
                 destination = self.get_index(instruction.target)
                 conditional = (instruction.condition != '')
-                jumps.append((source, destination, conditional))
+                jumps.append((instruction, source, destination, conditional))
         return jumps
 
     def detect_flow(self):
@@ -275,7 +339,8 @@ class Function(Closure):
 
 
 class Split:
-    def __init__(self, index, destination, conditional):
+    def __init__(self, cause, index, destination, conditional):
+        self.cause = cause
         self.index = index
         self.destination = destination
         self.conditional = conditional
@@ -320,7 +385,8 @@ class Split:
 
 
 class Join:
-    def __init__(self, index, source):
+    def __init__(self, cause, index, source):
+        self.cause = cause
         self.source = source
         self.index = index
 
@@ -361,9 +427,9 @@ def jumps_to_joinsplits(jumps):
     # Phase 1: collect all flow changes in an unified form
     # Warning Achtung Внимание: control flow jumps occur IMMEDIATELY AFTER the branch instruction
     joinsplits = []
-    for source, destination, conditional in jumps:
-        joinsplits.append(Split(source + 1, destination, conditional))
-        joinsplits.append(Join(destination, source + 1))
+    for cause, source, destination, conditional in jumps:
+        joinsplits.append(Split(cause, source + 1, destination, conditional))
+        joinsplits.append(Join(cause, destination, source + 1))
 
     # Phase 2: linearize according to the code layout and put splits before joins
     def keyfunction(splitjoin):
