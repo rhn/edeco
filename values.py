@@ -45,7 +45,7 @@ class MemoryRead(Value):
         return True
 
     def __str__(self):
-        return '({2})D[{0}+{1}]'.format(self.base, self.offset, self.size)
+        return '({2})D[{0}+{1}]'.format(self.base, self.offset, 'b' + str(self.size * 8))
 
 
 class BitwiseAndResult(Value):
