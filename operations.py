@@ -13,7 +13,7 @@ def traceback_register(context, reg_spec):
             index -= 1
         except NotImplementedError:
             print instruction.mnemonic, 'is not supported yet'
-            return UnknownValue(reg_spec)
+            return values.UnknownValue(reg_spec)
     return values.UnknownValue(reg_spec)
 
 

@@ -159,11 +159,28 @@ class CLEARInstruction(GenericInstruction):
         machine_state.write_reg(self.destination, value)
 
 
+class ANDInstruction(GenericInstruction):
+    def __init__(self, address, mnemonic, operands):
+        GenericInstruction.__init__(self, address, mnemonic, operands)
+        self.destination = operands[0]
+        self.source1 = operands[-2]
+        self.source2 = parse_reg_or_imm(operands[-1])
+
+    def evaluate(self, machine_state):
+        s1 = machine_state.read_reg(self.source1)
+        if isinstance(self.source2, int):
+            s2 = self.source2
+        else:
+            s2 = machine_state.read_reg(self.source2)
+        machine_state.write_reg(self.destination, s1 & s2)
+
+
 instruction_map = {'ld': LDInstruction,
                    'st': STInstruction,
                    'mov': MOVInstruction,
                    'bra': BRAInstruction,
-                   'clear': CLEARInstruction}
+                   'clear': CLEARInstruction,
+                   'and': ANDInstruction}
 
 
 def Instruction(address, mnemonic, operands):
