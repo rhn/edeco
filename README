@@ -1,6 +1,18 @@
 fuc decompiler.
 Requires Python 2.7+
 
+usage: postproc.py [-h] [-o ASMOFFSET] [-g] deasm deco
+
+positional arguments:
+  deasm                 input deasm file
+  deco                  output decompiled file
+
+optional arguments:
+  -h, --help            show help message and exit
+  -o ASMOFFSET, --asmoffset ASMOFFSET
+                        asm mnemonic offset
+  -g, --greedy          try to encapsulate all code in functions
+
 What it does:
 insert function headers
 find call addresses
