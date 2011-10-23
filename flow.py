@@ -246,10 +246,10 @@ class ControlStructure(FlowContainer):
         else:
             try:
                 print_graph(self)
-            except Exception, e:
+            except ImportError, e:
                 print e
-                import traceback
-                traceback.print_exc(e)
+                #import traceback
+                #traceback.print_exc(e)
             return 'FlowPattern {{{{\n{0}\n}}}}'.format(FlowContainer.__str__(self))
 
 
