@@ -74,7 +74,10 @@ class GenericInstruction:
         state = operations.MachineState(memory)
         for reg in self.get_read_regs():
             value = operations.traceback_register(context, reg)
-            state.regs.set(reg, value)
+            try:
+                state.regs.set(reg, value)
+            except:
+                raise NotImplementedError
         self.evaluate(state)
         return state.regs.get(reg_spec)
 
