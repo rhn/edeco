@@ -112,7 +112,7 @@ if __name__ == '__main__':
     instructions = []
     for line in data:
         line = line.strip()
-        if not line.startswith('//') and not line == '':
+        if not line.startswith('//') and not line == '' and not line.startswith('['):
             instructions.append(parse_line(line))
 
 
