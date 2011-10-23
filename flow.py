@@ -11,6 +11,68 @@ def indent(text):
                    text.split('\n'))
 
 
+def print_graph(flow):
+    def get_name(closure):
+        return '{0}:{1}'.format(hex(closure.instructions[0].address), hex(closure.instructions[-1].address))
+
+    def get_source_node(split):
+        for closure in flow.flow:
+            if split.cause in closure.instructions:
+                return nodes[closure]
+        return before
+
+    def get_target_node(split):
+        try:
+            ins = flow.instructions[split.destination]
+        except IndexError:
+            return after
+        for closure in flow.flow:
+            if ins in closure.instructions:
+                return nodes[closure]
+
+    def get_next_node(split):
+        for index, closure in enumerate(flow.flow):
+            if split.cause in closure.instructions:
+                try:
+                    return nodes[flow.flow[index + 1]]
+                except IndexError:
+                    return after
+
+    import pydot
+    mess = flow.mess
+    graph = pydot.Dot('"' + hex(flow.flow[0].instructions[0].address) + '"')
+    before = pydot.Node("start")
+    after = pydot.Node("end")
+    graph.add_node(before)
+    graph.add_node(after)
+    nodes = {}
+    fwedges = {}
+
+    for closure in flow.flow:
+        nodes[closure] = pydot.Node('"' + get_name(closure) + '"')
+        graph.add_node(nodes[closure])
+
+    sorted_nodes = []
+    for closure in flow.flow:
+        sorted_nodes.append(nodes[closure])
+    full_nodes = [before] + sorted_nodes + [after]
+    for first, second in zip(full_nodes, full_nodes[1:]):
+        fwedges[first] = pydot.Edge(first, second)
+
+    for splitjoin in mess:
+        if isinstance(splitjoin, Split):
+            src = get_source_node(splitjoin)
+            dst = get_target_node(splitjoin)
+            graph.add_edge(pydot.Edge(src, dst))
+            if not splitjoin.conditional:
+                del fwedges[src]
+
+    for edge in fwedges.values():
+        graph.add_edge(edge)
+
+    graph.write_png(hex(flow.flow[0].instructions[0].address) + '.png')
+
+
 def match_events(mess, order):
     if len(mess) != len(order):
         return False
@@ -182,6 +244,12 @@ class ControlStructure(FlowContainer):
         if self.flow is None:
             return 'UnparsedFlowPattern {{{{\n{0}\n}}}}'.format(indent(str(LinearCode(self.instructions))))
         else:
+            try:
+                print_graph(self)
+            except Exception, e:
+                print e
+                import traceback
+                traceback.print_exc(e)
             return 'FlowPattern {{{{\n{0}\n}}}}'.format(FlowContainer.__str__(self))
 
 
