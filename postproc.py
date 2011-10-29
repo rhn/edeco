@@ -106,7 +106,9 @@ if __name__ == '__main__':
     parser.add_argument('-g', '--greedy', action='store_true', default=False, help='try to encapsulate all code in functions')
     parser.add_argument('deasm', type=str, help='input deasm file')
     parser.add_argument('deco', type=str, help='output decompiled file')
+    parser.add_argument('-f', '--function', action="append", help="Function address")
     args = parser.parse_args()
+
     with open(args.deasm) as deasm:
         data = deasm.readlines()
 
@@ -133,7 +135,15 @@ if __name__ == '__main__':
         except FunctionBoundsException, e:
             print e
     else:
-        function_addrs = find_function_addresses(instructions)
+        addrs = []
+        if args.function:
+            for addr in args.function:
+                if addr.startswith('0x'):
+                    addrs.append(int(addr[2:], 16))
+                else:
+                    addrs.append(int(addr))
+        
+        function_addrs = find_function_addresses(instructions).union(set(addrs))
         functions = find_functions(instructions, function_addrs)
 
     memory_analyzer = MemoryStructureInstructionAnalyzer()
