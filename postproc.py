@@ -61,7 +61,10 @@ def find_functions(instructions, function_addrs):
         if start_vram <= address <= end_vram:
             while instructions[instr_index].addrtoint() != address:
                 instr_index += 1
-            functions.append(Function(instructions, instr_index))
+            try:
+                functions.append(Function(instructions, instr_index))
+            except FunctionBoundsException, e:
+                print e
         else:
             print 'function not in this segment:', hex(address)
     return functions
@@ -99,7 +102,7 @@ class MemoryStructureInstructionAnalyzer:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="decompile fuc")
-    parser.add_argument('-o', '--asmoffset', type=int, default=28, help='asm instruction offset')
+    parser.add_argument('-o', '--asmoffset', type=int, default=28, help='asm mnemonic offset')
     parser.add_argument('-g', '--greedy', action='store_true', default=False, help='try to encapsulate all code in functions')
     parser.add_argument('deasm', type=str, help='input deasm file')
     parser.add_argument('deco', type=str, help='output decompiled file')
