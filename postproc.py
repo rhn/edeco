@@ -61,21 +61,10 @@ def parse_line_envydis(disasmline):
     return Instruction(addr, mnemonic, operands)
 
 
-def find_function_addresses(parsed_code):
-    '''returns ints'''
-    function_addrs = []
-
-    for instruction in parsed_code:
-        if hasattr(instruction, 'function'):
-            function_addrs.append(instruction.function)
-    return set(function_addrs)
-
-
 def find_functions(instructions, function_addrs):
     functions = []
     instr_index = 0
     for address in sorted(function_addrs):
-        print hex(address)
         if start_vram <= address <= end_vram:
             while instructions[instr_index].address != address:
                 instr_index += 1
@@ -120,7 +109,7 @@ class MemoryStructureInstructionAnalyzer:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="decompile fuc")
-    parser.add_argument('-m', '--microcode', type=str, choices=['fuc', 'xtensa'], help='microcode name')
+    parser.add_argument('-m', '--microcode', type=str, choices=['fuc', 'xtensa'], required=True, help='microcode name')
     parser.add_argument('-g', '--greedy', action='store_true', default=False, help='try to encapsulate all code in functions')
     parser.add_argument('deasm', type=str, help='input deasm file')
     parser.add_argument('deco', type=str, help='output decompiled file')

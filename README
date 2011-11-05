@@ -1,4 +1,4 @@
-fuc decompiler.
+fuc & xtensa decompiler.
 Requires Python 2.7+
 
 usage: postproc.py [-h] [-o ASMOFFSET] [-g] deasm deco
@@ -7,11 +7,15 @@ positional arguments:
   deasm                 input deasm file
   deco                  output decompiled file
 
+required arguments:
+  -m {fuc,xtensa}, --microcode {fuc,xtensa}
+                        microcode name
+
 optional arguments:
   -h, --help            show help message and exit
-  -o ASMOFFSET, --asmoffset ASMOFFSET
-                        asm mnemonic offset
-  -g, --greedy          try to encapsulate all code in functions
+  -g, --greedy          try to encapsulate all code in functions (fuc only)
+  -f FUNCTION, --function FUNCTION
+                        Function address to use with regular (non-greedy) function search (multiple entried accepted)
 
 What it does:
 insert function headers
@@ -32,4 +36,3 @@ Recognize entangled control flow
 Emulate known instructions
 Take into account custom memory labels and function names
 Change labels/values interactively and emulate changed versions
-Support other architectures

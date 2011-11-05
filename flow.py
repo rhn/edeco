@@ -1,5 +1,6 @@
 # --- *coding=UTF-8* ---
 
+
 flow_changing_mnemonics = ['bra'] # ret looks more like an instruction, call doesn't change the flow
 finishing_mnemonics = ['ret']
 if_mnemonics = ['bra']
@@ -95,6 +96,40 @@ class FlowDetectError(Exception):
     pass
 
 
+def sorted_joinsplits(joinsplits):
+    """linearize according to the code layout and put splits before joins.
+    """
+    def cmpfunction(splitjoin1, splitjoin2):
+        prel1 = keyfunction(splitjoin1) 
+        prel2 = keyfunction(splitjoin2)
+        if prel1 == prel2: # both take effect on the same place, both are the same type, i.e. bad news
+            if isinstance(splitjoin1, Split): # both are!
+                # impossible situation... undefined?
+                raise FlowDetectError("Two splits occur at the same place. Situation unclear... (due to {0} and {1})".format(splitjoin1.cause, splitjoin2.cause))
+            else: # both are joins
+                # if both come from behind, the ealier one arrives later
+                # if both come from the front, the later one arrives earlier
+                # if they come from both sides, the later one arrives later
+                # if one comes from self, then gtfo, I've had enough
+                
+                joinpoint = splitjoin1.index
+                if splitjoin1.source < joinpoint and splitjoin2.source < joinpoint:
+                    return -cmp(splitjoin1.source, splitjoin2.source)
+                elif splitjoin1.source > joinpoint and splitjoin2.source > joinpoint:
+                    return -cmp(splitjoin1.source, splitjoin2.source)
+                else:
+                    return cmp(splitjoin1.source, splitjoin2.source)
+
+        else:
+            return cmp(prel1, prel2)
+
+    def keyfunction(splitjoin):
+        isjoin = isinstance(splitjoin, Join) # True will put it later
+        return splitjoin.index, isjoin
+            
+    return sorted(joinsplits, cmp=cmpfunction)
+
+
 class IFFlowType:
     def __init__(self, branch):
         self.branch = branch
@@ -175,6 +210,7 @@ class ControlStructure(FlowContainer):
         splitjoin_indices = [] # first, last pairs
 
         previous_splitjoin_index = 0
+        
         for i, splitjoin in enumerate(joinsplits):
             if splitjoin in mess:
                 splitjoin_indices.append((previous_splitjoin_index, i))
@@ -193,12 +229,11 @@ class ControlStructure(FlowContainer):
             if instructions:
                 splitjoin_slices.append((sjs, instructions, offset))
         
-        '''
+        """
         print joinsplits
         print zip(*splitjoin_slices)[0]
         print sorted(mess)
-        raw_input()
-        '''
+        """
         # step 4: generate closures
         closures = []
         
@@ -211,15 +246,7 @@ class ControlStructure(FlowContainer):
         self.flow = closures        
 
     def find_type(self):
-        def keyfunction(splitjoin):
-            isjoin = isinstance(splitjoin, Join) # True will put it later
-            if isjoin:
-                order = -splitjoin.source # joins with earlier source are outer
-            else:
-                order = -splitjoin.destination # joins further out are earlier
-            return splitjoin.index, isjoin, order
-
-        mess = sorted(self.mess, key=keyfunction)
+        mess = sorted_joinsplits(self.mess)
         
         # try if..
         events = [(Split, 0), (Join, 0)]
@@ -239,7 +266,10 @@ class ControlStructure(FlowContainer):
 
     def __str__(self):
         if self.type is not None:
-            return self.type.to_str(self.flow)
+            try:
+                return self.type.to_str(self.flow)
+            except ValueError: # whoops. wrong detection
+                pass
 
         if self.flow is None:
             return 'UnparsedFlowPattern {{{{\n{0}\n}}}}'.format(indent(str(LinearCode(self.instructions))))
@@ -284,8 +314,6 @@ class Closure(FlowContainer):
         current_forward_references = []
         linear_start_index = 0
 
-        #print 'flow', joinsplits
-
         for i, joinsplit in enumerate(joinsplits):
             if linear_start_index is not None: # was in linear flow mode
                 # commit results
@@ -306,15 +334,15 @@ class Closure(FlowContainer):
                         reference_index = y
 
                 if reference_index is None:
-                    raise FlowDetectError("A past jumpsplit referred to can't be found: {0}".format(joinsplit))
+                    raise FlowDetectError("A past joinsplit referred to can't be found: {0}".format(joinsplit))
                 current_forward_references.pop(reference_index)
             else:
-                raise FlowDetectError("Found self jump, not sure what to do")
+                raise FlowDetectError("Found self jump, not sure what to do. " + str(joinsplit.cause))
 
             if len(current_forward_references) == 0: # no jumps/splits: must be linear from now on
                 # switch modes
                 linear_start_index = joinsplit.index
-
+                
                 #commit results
                 subjoinsplits = joinsplits[flow_control_joinsplit_index:i + 1]
 
@@ -324,7 +352,7 @@ class Closure(FlowContainer):
 
                 for joinsplit in subjoinsplits:
                     joinsplit.offset(instructions_start_index)
-                    
+                
                 cs = ControlStructure(subinstructions, subjoinsplits)
                 control_structures.append(cs)
 
@@ -343,6 +371,7 @@ class Closure(FlowContainer):
 
 class Function(Closure):
     def __init__(self, code, index):
+        """It's pitiful, but this doesn't call the Closure constructor"""
         self.address = code[index].address
         self.index = index
         self.instructions = self.find(code)
@@ -356,12 +385,12 @@ class Function(Closure):
         for i in range(self.index, len(code)):
             instruction = code[i]
             current_address = instruction.address
-            if instruction.mnemonic in flow_changing_mnemonics:
+            if instruction.jumps():
                 if instruction.target < self.address:
-                    raise CodeError("branch to before function start " + str(instruction))
+                    raise FunctionBoundsException("branch to before function start " + str(instruction))
                 if instruction.target > current_address:
                     branches_outside.append(instruction.target)
-            elif instruction.mnemonic in finishing_mnemonics:
+            elif instruction.breaks_function():
                 # prune branches outside
                 new_outside_branches = []
                 for branch_target in branches_outside:
@@ -388,10 +417,10 @@ class Function(Closure):
     def find_jumps(self):
         jumps = []
         for i, instruction in enumerate(self.instructions):
-            if instruction.mnemonic in flow_changing_mnemonics:
+            if instruction.jumps():
                 source = self.get_index(instruction.address)
                 destination = self.get_index(instruction.target)
-                conditional = (instruction.condition != '')
+                conditional = instruction.is_conditional()
                 jumps.append((instruction, source, destination, conditional))
         return jumps
 
@@ -493,18 +522,10 @@ def jumps_to_joinsplits(jumps):
     # Phase 1: collect all flow changes in an unified form
     # Warning Achtung Внимание: control flow jumps occur IMMEDIATELY AFTER the branch instruction
     joinsplits = []
+    
     for cause, source, destination, conditional in jumps:
-        joinsplits.append(Split(cause, source + 1, destination, conditional))
-        joinsplits.append(Join(cause, destination, source + 1))
-
-    # Phase 2: linearize according to the code layout and put splits before joins
-    def keyfunction(splitjoin):
-        isjoin = isinstance(splitjoin, Join) # True will put it later
-        if isjoin:
-            order = -splitjoin.source # joins with earlier source are outer
-        else:
-            order = -splitjoin.destination # joins further out are earlier
-        return splitjoin.index, isjoin, order
-            
-    return sorted(joinsplits, key=keyfunction)
+        if source + 1 != destination:
+            joinsplits.append(Split(cause, source + 1, destination, conditional))
+            joinsplits.append(Join(cause, destination, source + 1))
+    return sorted_joinsplits(joinsplits)
 
