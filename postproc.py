@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
 import sys
-from instructions import Instruction
 from flow import Function, FunctionBoundsException
 import memory
 import operations
 import argparse
+
+
+class ParsingError(ValueError): pass
+
 
 def get_bra_address(operands):
   if len(operands) == 1:
@@ -34,10 +37,25 @@ def get_instr_index(address, instructions):
         raise NotFound
 
 
-def parse_line(disasmline):
-    addr = disasmline[:8]
-    code = disasmline[instruction_offset:]
-    spl = code.split(' ')
+def parse_line_envydis(disasmline):
+    """Typical format:
+    012345: 01 23 45 67  BC mnemonic operand1 operand2
+    address: opcode  FLAGS mnemonic operand1 operand2
+    flags: uppercase, instruction: lowercase
+    """
+    addr, rest = disasmline.split(':', 1)
+    try:
+        opcode, rest = rest.strip().split("  ", 1)
+    except ValueError, e:
+        raise ParsingError("line {0} invalid".format(repr(disasmline)))
+    
+    # destroy flags, stupid way:
+    flags = 'ABCDEFGHIJKLMNOPQRSTUWVXYZ'
+    
+    instruction = rest
+    for flag in flags:
+        instruction = instruction.replace(flag, '')
+    spl = instruction.strip().split()
     mnemonic = spl[0]
     operands = spl[1:]
     return Instruction(addr, mnemonic, operands)
@@ -48,8 +66,8 @@ def find_function_addresses(parsed_code):
     function_addrs = []
 
     for instruction in parsed_code:
-        if instruction.mnemonic == 'call':
-            function_addrs.append(int(instruction.operands[0][2:], 16))
+        if hasattr(instruction, 'function'):
+            function_addrs.append(instruction.function)
     return set(function_addrs)
 
 
@@ -59,7 +77,7 @@ def find_functions(instructions, function_addrs):
     for address in sorted(function_addrs):
         print hex(address)
         if start_vram <= address <= end_vram:
-            while instructions[instr_index].addrtoint() != address:
+            while instructions[instr_index].address != address:
                 instr_index += 1
             try:
                 functions.append(Function(instructions, instr_index))
@@ -102,28 +120,41 @@ class MemoryStructureInstructionAnalyzer:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="decompile fuc")
-    parser.add_argument('-o', '--asmoffset', type=int, default=28, help='asm mnemonic offset')
+    parser.add_argument('-m', '--microcode', type=str, choices=['fuc', 'xtensa'], help='microcode name')
     parser.add_argument('-g', '--greedy', action='store_true', default=False, help='try to encapsulate all code in functions')
     parser.add_argument('deasm', type=str, help='input deasm file')
     parser.add_argument('deco', type=str, help='output decompiled file')
     parser.add_argument('-f', '--function', action="append", help="Function address")
     args = parser.parse_args()
 
+    # input file
     with open(args.deasm) as deasm:
         data = deasm.readlines()
 
-    instruction_offset = args.asmoffset
+    if args.microcode == 'fuc':
+        from fuc import *
+    elif args.microcode == 'xtensa':
+        from xtensa import *
+    else:
+        raise ValueError("ISA {0} unsupported".format(args.microcode))
     
+
+    # filter out instructions and parse them
     instructions = []
     for line in data:
         line = line.strip()
         if not line.startswith('//') and not line == '' and not line.startswith('['):
-            instructions.append(parse_line(line))
+            try:
+                instructions.append(parse_line_envydis(line))
+            except ParsingError, e:
+                #print e, 'line skipped'
+                pass
 
-
+    # set globals
     start_vram = instructions[0].addrtoint()
     end_vram = instructions[-1].addrtoint()
 
+    # find functions
     if args.greedy:
         functions = []
         index = 0
