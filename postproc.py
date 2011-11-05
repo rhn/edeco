@@ -10,33 +10,6 @@ import argparse
 class ParsingError(ValueError): pass
 
 
-def get_bra_address(operands):
-  if len(operands) == 1:
-    return operands[0]
-  else:
-    return operands[1]
-
-def get_first_operand(operands):
-    return operands[1]
-
-branch_address_extractors = {'bra': get_bra_address,
-                             'call': get_first_operand,
-                             }
-
-def get_instr_index(address, instructions):
-    instr_index = 0
-    first_addr = instructions[0].addrtoint()
-    last_addr = instructions[-1].addrtoint()
-    if first_addr <= address <= last_addr:
-        while instructions[instr_index].addrtoint() != address:
-            instr_index += 1
-        if instr_index > len(instructions):
-            raise NotFound
-        return instr_index
-    else:
-        raise NotFound
-
-
 def parse_line_envydis(disasmline):
     """Typical format:
     012345: 01 23 45 67  BC mnemonic operand1 operand2
@@ -61,15 +34,23 @@ def parse_line_envydis(disasmline):
     return Instruction(addr, mnemonic, operands)
 
 
-def find_functions(instructions, function_addrs):
-    functions = []
+def parse_functions_cmap_envydis(cmapline):
+    if cmapline.startswith('C'):
+        typ, addr, name = cmapline.split()
+        if name == '?':
+            name = None
+        addr = int(addr, 16)
+        return addr, name
+
+
+def find_functions(instructions, function_addrs, code_memory):
     instr_index = 0
     for address in sorted(function_addrs):
         if start_vram <= address <= end_vram:
             while instructions[instr_index].address != address:
                 instr_index += 1
             try:
-                functions.append(Function(instructions, instr_index))
+                code_memory.add_function(Function(instructions, instr_index))
             except FunctionBoundsException, e:
                 print e
         else:
@@ -110,6 +91,7 @@ class MemoryStructureInstructionAnalyzer:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="decompile fuc")
     parser.add_argument('-m', '--microcode', type=str, choices=['fuc', 'xtensa'], required=True, help='microcode name')
+    parser.add_argument('--cmap', type=str, help='code space map file')
     parser.add_argument('-g', '--greedy', action='store_true', default=False, help='try to encapsulate all code in functions')
     parser.add_argument('deasm', type=str, help='input deasm file')
     parser.add_argument('deco', type=str, help='output decompiled file')
@@ -139,35 +121,46 @@ if __name__ == '__main__':
                 #print e, 'line skipped'
                 pass
 
+    functions = {}
+    if args.cmap:
+        with open(args.cmap) as cmap:
+            for line in cmap:
+                result = parse_functions_cmap_envydis(line.strip())
+                if result:
+                    address, name = result
+                    functions[address] = name
+
+    code_memory = memory.CodeMemory(functions)
+
     # set globals
     start_vram = instructions[0].addrtoint()
     end_vram = instructions[-1].addrtoint()
 
     # find functions
     if args.greedy:
-        functions = []
         index = 0
         try:
             while index < len(instructions):
                 f = Function(instructions, index)
-                functions.append(f)
+                code_memory.add_function(f)
                 index += len(f.instructions)
         except FunctionBoundsException, e:
             print e
     else:
-        addrs = []
+        addrs = functions.keys()
         if args.function:
             for addr in args.function:
                 if addr.startswith('0x'):
-                    addrs.append(int(addr[2:], 16))
+                    addr = int(addr[2:], 16)
                 else:
-                    addrs.append(int(addr))
+                    addr = int(addr)
+                addrs.append(addr)
         
         function_addrs = find_function_addresses(instructions).union(set(addrs))
-        functions = find_functions(instructions, function_addrs)
+        find_functions(instructions, function_addrs, code_memory)
 
     memory_analyzer = MemoryStructureInstructionAnalyzer()
-    memory_structure = memory_analyzer.find_memory_structures(functions)
+    memory_structure = memory_analyzer.find_memory_structures(code_memory.functions)
 
     '''
     if len(sys.argv) > 3:
@@ -177,5 +170,4 @@ if __name__ == '__main__':
 
     with open(args.deco, 'w') as output:
         output.write(str(memory_structure))
-        for function in functions:
-            output.write(str(function))
+        output.write(str(code_memory))

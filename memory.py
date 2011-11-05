@@ -69,7 +69,6 @@ class FucMemoryLayout(MemoryLayout):
 class MemoryStructure:
     """Decompiled and analyzed version of the layout"""
     def __init__(self):
-        """size=None means infinite, counted in bytes"""
         self.members = {} # {(address rel begining of structure):member}
         self.parent = None
 
@@ -145,3 +144,25 @@ class Structure(MemoryStructure):
         struct_string = 'struct {0} {{\n{1}\n}};'
 
         return struct_string.format(self.name, '\n'.join(member_strings))
+
+
+class CodeMemory:
+    """Sort of pointless..."""
+    def __init__(self, function_mappings):
+        self.function_mappings = function_mappings
+        self.functions = []
+
+    def add_function(self, function):
+        if function.address in self.function_mappings:
+            name = self.function_mappings[function.address]
+            if name:
+                function.name = name
+        self.functions.append(function)
+
+    def __str__(self):
+        function_format = '// {0}\n{1}'
+        function_strings = []
+        for function in self.functions:
+            function_strings.append(function_format.format(hex(function.address), function))
+
+        return '\n\n'.join(function_strings)

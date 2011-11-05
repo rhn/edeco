@@ -373,6 +373,7 @@ class Function(Closure):
     def __init__(self, code, index):
         """It's pitiful, but this doesn't call the Closure constructor"""
         self.address = code[index].address
+        self.name = 'f_' + hex(self.address)
         self.index = index
         self.instructions = self.find(code)
         self.flow = None
@@ -430,7 +431,7 @@ class Function(Closure):
         self.find_flow_patterns(joinsplits)
     
     def __str__(self):
-        return '\n// {0}\nf_{0}(...) {1}\n'.format(hex(self.address), Closure.__str__(self))
+        return '{0}(...) {1}'.format(self.name, Closure.__str__(self))
 
 
 class Split:
