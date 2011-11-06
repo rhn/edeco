@@ -1,5 +1,5 @@
 from common import instructions
-
+import machine
 
 def parse_imm(operand):
     if operand.startswith('0x'):
@@ -14,8 +14,8 @@ def parse_imm(operand):
 
 
 class BranchInstruction(instructions.GenericInstruction):
-    def __init__(self, address, mnemonic, operands):
-        instructions.GenericInstruction.__init__(self, address, mnemonic, operands)
+    def __init__(self, arch, address, mnemonic, operands):
+        instructions.GenericInstruction.__init__(self, arch, address, mnemonic, operands)
         if mnemonic.endswith('z'):
             target = operands[1]
         else:
@@ -31,8 +31,8 @@ class BranchInstruction(instructions.GenericInstruction):
 
 
 class JumpInstruction(instructions.GenericInstruction):
-    def __init__(self, address, mnemonic, operands):
-        instructions.GenericInstruction.__init__(self, address, mnemonic, operands)
+    def __init__(self, arch, address, mnemonic, operands):
+        instructions.GenericInstruction.__init__(self, arch, address, mnemonic, operands)
         self.target = parse_imm(operands[0])
 
     def jumps(self):
@@ -49,8 +49,8 @@ class RetInstruction(instructions.GenericInstruction):
 
 class CallInstruction(instructions.GenericInstruction):
     """Doesn't support the 0x8 thing (first mnemonic)"""
-    def __init__(self, address, mnemonic, operands):
-        instructions.GenericInstruction.__init__(self, address, mnemonic, operands)
+    def __init__(self, arch, address, mnemonic, operands):
+        instructions.GenericInstruction.__init__(self, arch, address, mnemonic, operands)
         self.function = parse_imm(operands[1])
 
     def calls_function(self):
@@ -89,4 +89,4 @@ instruction_map = {'retw': RetInstruction,
 
 
 def Instruction(address, mnemonic, operands):
-    return instructions.Instruction(address, mnemonic, operands, instruction_map)
+    return instructions.Instruction(machine.Architecture, address, mnemonic, operands, instruction_map)

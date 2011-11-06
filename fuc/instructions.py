@@ -1,3 +1,4 @@
+import machine
 import common.instructions as instructions
 
 
@@ -33,8 +34,8 @@ def parse_address(addr):
 
 
 class BRAInstruction(GenericInstruction):
-    def __init__(self, address, mnemonic, operands):
-        GenericInstruction.__init__(self, address, mnemonic, operands)
+    def __init__(self, arch, address, mnemonic, operands):
+        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
         self.target = parse_imm(operands[-1])
         if len(operands) == 1:
             self.condition = ''
@@ -43,8 +44,8 @@ class BRAInstruction(GenericInstruction):
 
 
 class CALLInstruction(GenericInstruction):
-    def __init__(self, address, mnemonic, operands):
-        GenericInstruction.__init__(self, address, mnemonic, operands)
+    def __init__(self, arch, address, mnemonic, operands):
+        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
         self.function = parse_imm(operands[0])
 
     def calls_function(self):
@@ -57,8 +58,8 @@ class RETInstruction(GenericInstruction):
 
 
 class LDInstruction(GenericInstruction):
-    def __init__(self, address, mnemonic, operands):
-        GenericInstruction.__init__(self, address, mnemonic, operands)
+    def __init__(self, arch, address, mnemonic, operands):
+        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
         self.size = operands[0]
         self.destination = operands[1]
         
@@ -80,8 +81,8 @@ class LDInstruction(GenericInstruction):
 
 
 class STInstruction(GenericInstruction):
-    def __init__(self, address, mnemonic, operands):
-        GenericInstruction.__init__(self, address, mnemonic, operands)
+    def __init__(self, arch, address, mnemonic, operands):
+        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
         self.size = operands[0]
         self.source = operands[2]
         
@@ -103,8 +104,8 @@ class STInstruction(GenericInstruction):
 
 
 class MOVInstruction(GenericInstruction):
-    def __init__(self, address, mnemonic, operands):
-        GenericInstruction.__init__(self, address, mnemonic, operands)
+    def __init__(self, arch, address, mnemonic, operands):
+        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
         self.source = parse_reg_or_imm(operands[1])
         self.destination = operands[0]
 
@@ -117,8 +118,8 @@ class MOVInstruction(GenericInstruction):
 
 
 class CLEARInstruction(GenericInstruction):
-    def __init__(self, address, mnemonic, operands):
-        GenericInstruction.__init__(self, address, mnemonic, operands)
+    def __init__(self, arch, address, mnemonic, operands):
+        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
         self.size = operands[0]
         self.destination = operands[1]
 
@@ -135,8 +136,8 @@ class CLEARInstruction(GenericInstruction):
 
 
 class ANDInstruction(GenericInstruction):
-    def __init__(self, address, mnemonic, operands):
-        GenericInstruction.__init__(self, address, mnemonic, operands)
+    def __init__(self, arch, address, mnemonic, operands):
+        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
         self.destination = operands[0]
         self.source1 = operands[-2]
         self.source2 = parse_reg_or_imm(operands[-1])
@@ -151,8 +152,8 @@ class ANDInstruction(GenericInstruction):
 
 
 class SETHIInstruction(GenericInstruction):
-    def __init__(self, address, mnemonic, operands):
-        GenericInstruction.__init__(self, address, mnemonic, operands)
+    def __init__(self, arch, address, mnemonic, operands):
+        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
         self.destination = operands[0]
         self.source = parse_imm(operands[1])
 
@@ -174,4 +175,4 @@ instruction_map = {'ld': LDInstruction,
 
 
 def Instruction(address, mnemonic, operands):
-    return instructions.Instruction(address, mnemonic, operands, instruction_map)
+    return instructions.Instruction(machine.Architecture, address, mnemonic, operands, instruction_map)

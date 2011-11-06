@@ -2,7 +2,8 @@ import operations
 
 
 class GenericInstruction:
-    def __init__(self, address, mnemonic, operands):
+    def __init__(self, architecture, address, mnemonic, operands):
+        self.arch = architecture
         self.addr = address
         self.address = self.addrtoint()
         self.mnemonic = mnemonic
@@ -35,18 +36,18 @@ class GenericInstruction:
         raise NotImplementedError
 
     def get_read_regs(self):
-        state = operations.DummyMachineState()
+        state = self.arch.DummyMachineState()
         self.evaluate(state)
         return state.get_read_places()
 
     def get_modified_regs(self):
-        state = operations.DummyMachineState()
+        state = self.arch.DummyMachineState()
         self.evaluate(state)
         return state.get_written_places()
 
     def get_value(self, context, reg_spec):
         instructions, index, memory = context
-        state = operations.MachineState(memory)
+        state = self.arch.MachineState(memory)
         for reg in self.get_read_regs():
             value = operations.traceback_register(context, reg)
             try:
@@ -76,14 +77,14 @@ class GenericInstruction:
         raise NotImplementedError
 
 
-def Instruction(address, mnemonic, operands, instruction_map):
+def Instruction(architecture, address, mnemonic, operands, instruction_map):
     """Creates instructions based on instruction_map"""
     try:
         cls = instruction_map[mnemonic]
     except KeyError:
         cls = GenericInstruction
     try:
-        return cls(address, mnemonic, operands)
+        return cls(architecture, address, mnemonic, operands)
     except:
-        print GenericInstruction(address, mnemonic, operands)
+        print GenericInstruction(architecture, address, mnemonic, operands)
         raise

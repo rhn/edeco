@@ -29,54 +29,6 @@ class Registers:
         self.gp[int(name[2:])] = value
 
 
-class MachineState:
-    def __init__(self, memory_structure):
-        self.regs = Registers()
-        self.memory = memory_structure
-    
-    def read_mem(self, base, offset, size):
-        size = int(size[1:]) / 8
-        cell = self.memory.get_memory(base, offset, size)
-        if cell is None:
-            return values.MemoryRead(base, offset, size)
-        return cell
-
-    def write_mem(self, base, offset, size, value):
-        pass
-
-    def read_reg(self, reg_spec):
-        return self.regs.get(reg_spec)
-    
-    def write_reg(self, reg_spec, value):
-        return self.regs.set(reg_spec, value)
-    
-
-class DummyMachineState:
-    """A machine state that only tracks reads and writes"""
-    def __init__(self):
-        self.read_places = set()
-        self.written_places = set()
-
-    def read_reg(self, reg_spec):
-        self.read_places.add(reg_spec)
-        return values.UnknownValue(None)
-
-    def write_reg(self, reg_spec, value):
-        self.written_places.add(reg_spec)
-
-    def read_mem(self, base, offset, size):
-        return values.UnknownValue
-
-    def write_mem(self, base, offset, size, value):
-        pass
-
-    def get_read_places(self):
-        return self.read_places
-    
-    def get_written_places(self):
-        return self.written_places
-
-
 class MemoryAssignment:
     def __init__(self, instructions, data_SRAM, store_index):
         self.instruction = instructions[store_index]
