@@ -6,6 +6,6 @@ def find_function_addresses(parsed_code):
     function_addrs = []
 
     for instruction in parsed_code:
-        if hasattr(instruction, 'function'):
+        if instruction.calls_function():
             function_addrs.append(instruction.function)
     return set(function_addrs)

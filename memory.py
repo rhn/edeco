@@ -1,7 +1,12 @@
-class MemoryCell:
+import values
+
+class MemoryCell(values.Value):
     def __init__(self, size):
         self.size = size
         self.owner = None
+
+    def will_collapse(self):
+        return True
 
     def __str__(self):
         if not self.owner:

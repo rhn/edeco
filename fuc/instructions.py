@@ -1,4 +1,7 @@
-import instructions
+import common.instructions as instructions
+
+
+GenericInstruction = instructions.GenericInstruction
 
 
 def parse_reg_or_imm(operand):
@@ -21,12 +24,15 @@ def parse_imm(operand):
 
 
 def parse_address(addr):
+    if not (addr.startswith('[') and addr.endswith(']')):
+        raise ValueError("Address format unsupported " + addr)
+    addr = addr[1:-1]
     if '+' in addr:
         return addr.split('+')
     return addr, '0'
 
 
-class BRAInstruction(instructions.GenericInstruction):
+class BRAInstruction(GenericInstruction):
     def __init__(self, address, mnemonic, operands):
         GenericInstruction.__init__(self, address, mnemonic, operands)
         self.target = parse_imm(operands[-1])
@@ -36,14 +42,27 @@ class BRAInstruction(instructions.GenericInstruction):
             self.condition = parse_imm(operands[0])
 
 
-class LDInstruction(instructions.GenericInstruction):
+class CALLInstruction(GenericInstruction):
+    def __init__(self, address, mnemonic, operands):
+        GenericInstruction.__init__(self, address, mnemonic, operands)
+        self.function = parse_imm(operands[0])
+
+    def calls_function(self):
+        return True
+
+
+class RETInstruction(GenericInstruction):
+    def breaks_function(self):
+        return True
+
+
+class LDInstruction(GenericInstruction):
     def __init__(self, address, mnemonic, operands):
         GenericInstruction.__init__(self, address, mnemonic, operands)
         self.size = operands[0]
         self.destination = operands[1]
-        addr = operands[2][2:-1]
         
-        base, offset = parse_address(addr)
+        base, offset = parse_address(operands[2])
         if not (base.startswith('$r') or base.startswith('$sp')):
             raise Exception('unsupported base ' + base + ' of ' + GenericInstruction.__str__(self))
         else:
@@ -60,14 +79,13 @@ class LDInstruction(instructions.GenericInstruction):
         machine_state.write_reg(self.destination, value)
 
 
-class STInstruction(instructions.GenericInstruction):
+class STInstruction(GenericInstruction):
     def __init__(self, address, mnemonic, operands):
         GenericInstruction.__init__(self, address, mnemonic, operands)
         self.size = operands[0]
         self.source = operands[2]
-        addr = operands[1][2:-1]
         
-        base, offset = parse_address(addr)
+        base, offset = parse_address(operands[1])
         if not (base.startswith('$r') or base.startswith('$sp')):
             raise Exception('unsupported base ' + base + ' of ' + GenericInstruction.__str__(self))
         else:
@@ -84,7 +102,7 @@ class STInstruction(instructions.GenericInstruction):
         machine_state.write_mem(base, offset, self.size, source)
 
 
-class MOVInstruction(instructions.GenericInstruction):
+class MOVInstruction(GenericInstruction):
     def __init__(self, address, mnemonic, operands):
         GenericInstruction.__init__(self, address, mnemonic, operands)
         self.source = parse_reg_or_imm(operands[1])
@@ -98,7 +116,7 @@ class MOVInstruction(instructions.GenericInstruction):
         machine_state.write_reg(self.destination, value)
 
 
-class CLEARInstruction(instructions.GenericInstruction):
+class CLEARInstruction(GenericInstruction):
     def __init__(self, address, mnemonic, operands):
         GenericInstruction.__init__(self, address, mnemonic, operands)
         self.size = operands[0]
@@ -116,7 +134,7 @@ class CLEARInstruction(instructions.GenericInstruction):
         machine_state.write_reg(self.destination, value)
 
 
-class ANDInstruction(instructions.GenericInstruction):
+class ANDInstruction(GenericInstruction):
     def __init__(self, address, mnemonic, operands):
         GenericInstruction.__init__(self, address, mnemonic, operands)
         self.destination = operands[0]
@@ -132,7 +150,7 @@ class ANDInstruction(instructions.GenericInstruction):
         machine_state.write_reg(self.destination, s1 & s2)
 
 
-class SETHIInstruction(instructions.GenericInstruction):
+class SETHIInstruction(GenericInstruction):
     def __init__(self, address, mnemonic, operands):
         GenericInstruction.__init__(self, address, mnemonic, operands)
         self.destination = operands[0]
@@ -150,6 +168,10 @@ instruction_map = {'ld': LDInstruction,
                    'bra': BRAInstruction,
                    'clear': CLEARInstruction,
                    'and': ANDInstruction,
-                   'sethi': SETHIInstruction}
+                   'sethi': SETHIInstruction,
+                   'call': CALLInstruction,
+                   'ret': RETInstruction}
 
-Instruction = instructions.Instruction
+
+def Instruction(address, mnemonic, operands):
+    return instructions.Instruction(address, mnemonic, operands, instruction_map)
