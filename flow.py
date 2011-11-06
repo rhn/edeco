@@ -169,6 +169,7 @@ class FlowContainer:
 
 
 class ControlStructure(FlowContainer):
+    diagrams = False
     def __init__(self, code, joinsplits):
         FlowContainer.__init__(self)
         self.instructions = code
@@ -274,10 +275,8 @@ class ControlStructure(FlowContainer):
         if self.flow is None:
             return 'UnparsedFlowPattern {{{{\n{0}\n}}}}'.format(indent(str(LinearCode(self.instructions))))
         else:
-            try:
+            if self.diagrams:
                 print_graph(self)
-            except ImportError, e:
-                print e
             return 'FlowPattern {{{{\n{0}\n}}}}'.format(FlowContainer.__str__(self))
 
 

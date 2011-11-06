@@ -76,6 +76,9 @@ class GenericInstruction:
         """Returns true is jump is conditional"""
         raise NotImplementedError
 
+    def stores_memory(self):
+        return False
+
 
 def Instruction(architecture, address, mnemonic, operands, instruction_map):
     """Creates instructions based on instruction_map"""

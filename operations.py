@@ -51,7 +51,7 @@ class MemoryAssignment:
         self.instruction.replaced_by = self
 
     def get_memory_size(self):
-        return int(self.instruction.size[1:]) / 8
+        return self.instruction.size
     
     def traceback(self):
         self.base = self.instruction.get_value((self.instructions, self.index, self.data_SRAM), self.instruction.base)

@@ -5,6 +5,12 @@ import common.instructions as instructions
 GenericInstruction = instructions.GenericInstruction
 
 
+def parse_size(operand):
+    if operand.startswith("b") and int(operand[1:]) % 8 == 0:
+        return int(operand[1:]) / 8
+    raise ValueError("Unrecognized size: " + operand)
+
+
 def parse_reg_or_imm(operand):
     if operand.startswith('$'):
         return operand
@@ -60,7 +66,7 @@ class RETInstruction(GenericInstruction):
 class LDInstruction(GenericInstruction):
     def __init__(self, arch, address, mnemonic, operands):
         GenericInstruction.__init__(self, arch, address, mnemonic, operands)
-        self.size = operands[0]
+        self.size = parse_size(operands[0])
         self.destination = operands[1]
         
         base, offset = parse_address(operands[2])
@@ -74,16 +80,16 @@ class LDInstruction(GenericInstruction):
     def evaluate(self, machine_state):
         offset = self.offset
         if not isinstance(self.offset, int):
-            offset = machine_state.read_reg(self.offset)
-        base = machine_state.read_reg(self.base)
-        value = machine_state.read_mem(base, offset, self.size)
-        machine_state.write_reg(self.destination, value)
+            offset = machine_state.read_register(self.offset)
+        base = machine_state.read_register(self.base)
+        value = machine_state.read_memory(base, offset, self.size)
+        machine_state.write_register(self.destination, value)
 
 
 class STInstruction(GenericInstruction):
     def __init__(self, arch, address, mnemonic, operands):
         GenericInstruction.__init__(self, arch, address, mnemonic, operands)
-        self.size = operands[0]
+        self.size = parse_size(operands[0])
         self.source = operands[2]
         
         base, offset = parse_address(operands[1])
@@ -95,12 +101,12 @@ class STInstruction(GenericInstruction):
         self.offset = parse_reg_or_imm(offset)
 
     def evaluate(self, machine_state):
-        source = machine_state.read_reg(self.source)
+        source = machine_state.read_register(self.source)
         offset = self.offset
         if not isinstance(self.offset, int):
-            offset = machine_state.read_reg(self.offset)
-        base = machine_state.read_reg(self.base)
-        machine_state.write_mem(base, offset, self.size, source)
+            offset = machine_state.read_register(self.offset)
+        base = machine_state.read_register(self.base)
+        machine_state.write_memory(base, offset, self.size, source)
 
 
 class MOVInstruction(GenericInstruction):
@@ -111,10 +117,10 @@ class MOVInstruction(GenericInstruction):
 
     def evaluate(self, machine_state):
         if not isinstance(self.source, int):
-            value = machine_state.read_reg(self.source)
+            value = machine_state.read_register(self.source)
         else:
             value = self.source
-        machine_state.write_reg(self.destination, value)
+        machine_state.write_register(self.destination, value)
 
 
 class CLEARInstruction(GenericInstruction):
@@ -127,12 +133,12 @@ class CLEARInstruction(GenericInstruction):
         if self.size == 'b32':
             value = 0
         else:
-            reg = machine_state.read_reg(self.destination)
+            reg = machine_state.read_register(self.destination)
             if self.size == 'b16':
                 value = reg & 0xffff0000
             else: # b8
                 value = reg & 0xffffff00
-        machine_state.write_reg(self.destination, value)
+        machine_state.write_register(self.destination, value)
 
 
 class ANDInstruction(GenericInstruction):
@@ -143,12 +149,12 @@ class ANDInstruction(GenericInstruction):
         self.source2 = parse_reg_or_imm(operands[-1])
 
     def evaluate(self, machine_state):
-        s1 = machine_state.read_reg(self.source1)
+        s1 = machine_state.read_register(self.source1)
         if isinstance(self.source2, int):
             s2 = self.source2
         else:
-            s2 = machine_state.read_reg(self.source2)
-        machine_state.write_reg(self.destination, s1 & s2)
+            s2 = machine_state.read_register(self.source2)
+        machine_state.write_register(self.destination, s1 & s2)
 
 
 class SETHIInstruction(GenericInstruction):
@@ -158,9 +164,9 @@ class SETHIInstruction(GenericInstruction):
         self.source = parse_imm(operands[1])
 
     def evaluate(self, machine_state):
-        value = machine_state.read_reg(self.destination)
+        value = machine_state.read_register(self.destination)
         value = value & 0xFFFF | self.source
-        machine_state.write_reg(self.destination, value)
+        machine_state.write_register(self.destination, value)
 
 
 instruction_map = {'ld': LDInstruction,

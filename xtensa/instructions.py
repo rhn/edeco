@@ -1,16 +1,36 @@
 from common import instructions
 import machine
 
+
 def parse_imm(operand):
     if operand.startswith('0x'):
         return int(operand[2:], 16)
     elif operand.startswith('-0x'):
         return -int(operand[3:], 16)
     else:
-        try:
-            return int(operand)
-        except ValueError:
-            return operand
+        return int(operand)
+
+
+def parse_reg(operand):
+    if not operand.startswith("$a"):
+        raise ValueError("Register type unsupported " + operand)
+    else:
+        return operand
+
+
+def parse_memory_address(operand):
+    if not (operand.startswith('[') and operand.endswith(']')):
+        raise ValueError("Memory access format unknown " + operand)
+    else:
+        operand = operand[1:-1]
+        if "+" in operand:
+            base, offset = operand.split("+")
+            base = parse_reg(base)
+            offset = parse_imm(offset)
+        else:
+            base = parse_reg(operand)
+            offset = 0
+        return base, offset
 
 
 class BranchInstruction(instructions.GenericInstruction):
@@ -42,6 +62,18 @@ class JumpInstruction(instructions.GenericInstruction):
         return False
 
 
+class JumpDynamicInstruction(instructions.GenericInstruction):
+    def __init__(self, arch, address, mnemonic, operands):
+        instructions.GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        self.target = parse_reg(operands[0])
+
+    def jumps(self):
+        return True
+
+    def is_conditional(self):
+        return False
+
+
 class RetInstruction(instructions.GenericInstruction):
     def breaks_function(self):
         return True
@@ -55,6 +87,21 @@ class CallInstruction(instructions.GenericInstruction):
 
     def calls_function(self):
         return True
+
+
+class StoreInstruction(instructions.GenericInstruction):
+    def __init__(self, arch, address, mnemonic, operands):
+        instructions.GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        self.source = parse_reg(operands[0])
+        self.base, self.offset = parse_memory_address(operands[1])
+        self.size = 4
+
+    def stores_memory(self):
+        return True
+
+    def evaluate(self, machine_state):
+        value = machine_state.read_register(self.source)
+        machine_state.write_memory(self.base, self.offset, 32, value)
 
 
 instruction_map = {'retw': RetInstruction,
@@ -85,7 +132,9 @@ instruction_map = {'retw': RetInstruction,
                    'bbc': BranchInstruction,
                    'bbs': BranchInstruction,
                    'j': JumpInstruction,
-                   'jx': JumpInstruction}
+                   'jx': JumpDynamicInstruction,
+                   's32i': StoreInstruction,
+                   's32i.n': StoreInstruction}
 
 
 def Instruction(address, mnemonic, operands):

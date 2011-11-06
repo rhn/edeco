@@ -30,7 +30,6 @@ class MachineState:
         return self.regs.set(reg_spec, value)
 
     def read_memory(self, base, offset, size):
-        size = int(size[1:]) / 8
         cell = self.memory.get_memory(base, offset, size)
         if cell is None:
             return values.MemoryRead(base, offset, size)
@@ -49,17 +48,17 @@ class DummyMachineState:
         self.read_places = set()
         self.written_places = set()
 
-    def read_reg(self, reg_spec):
+    def read_register(self, reg_spec):
         self.read_places.add(reg_spec)
         return values.UnknownValue(None)
 
-    def write_reg(self, reg_spec, value):
+    def write_register(self, reg_spec, value):
         self.written_places.add(reg_spec)
 
-    def read_mem(self, base, offset, size):
+    def read_memory(self, base, offset, size):
         return values.UnknownValue(None)
 
-    def write_mem(self, base, offset, size, value):
+    def write_memory(self, base, offset, size, value):
         pass
 
     def get_read_places(self):

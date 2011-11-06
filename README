@@ -36,3 +36,8 @@ Recognize entangled control flow
 Emulate known instructions
 Take into account custom memory labels and function names
 Change labels/values interactively and emulate changed versions
+
+
+TODO:
+redesign machine-specific code to cleanly separate per-machine memory space, actual memory accesses, memory structure, memory structure hints (good first step: dumb per-machine memory space object)
+rebuild flow parser to be emulator-like (parsing as it goes, evaluate branch targets as it goes)

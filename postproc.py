@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-from flow import Function, FunctionBoundsException
+from flow import Function, FunctionBoundsException, ControlStructure
 import memory
 import operations
 import argparse
@@ -58,41 +58,12 @@ def find_functions(instructions, function_addrs, code_memory):
     return functions
 
 
-class MemoryStructureInstructionAnalyzer:
-    def __init__(self):
-        self.data_SRAM = memory.FucMemoryLayout()
-        self.analyzed_operations = None
-
-    def find_memory_structures(self, functions):
-        self.analyzed_operations = []
-        for function in functions:
-            function.apply_instruction_analyzer(self.scan_instruction_block)
-
-        memory_structure = self.data_SRAM.find_structure()
-        
-        for candidate in self.analyzed_operations:
-            if candidate.memory is not None:
-                candidate.mark_complete()
-        return memory_structure
-    
-    def scan_instruction_block(self, instructions):
-        """This function sucks. should be split into finding memory layout and then finding roles, naming structures and whatnot.
-        """
-        write_candidates = []
-        for i, instruction in enumerate(instructions):
-            if instruction.mnemonic == 'st':
-                write_candidates.append(operations.MemoryAssignment(instructions, self.data_SRAM, i))
-        
-        for candidate in write_candidates:
-            candidate.traceback()
-        self.analyzed_operations.extend(write_candidates)
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="decompile fuc")
     parser.add_argument('-m', '--microcode', type=str, choices=['fuc', 'xtensa'], required=True, help='microcode name')
     parser.add_argument('--cmap', type=str, help='code space map file')
     parser.add_argument('-g', '--greedy', action='store_true', default=False, help='try to encapsulate all code in functions')
+    parser.add_argument('-d', '--diagrams', action='store_true', default=False, help='Generate control flow diagrams for unresolved control patterns. Requires pydot and graphviz')
     parser.add_argument('deasm', type=str, help='input deasm file')
     parser.add_argument('deco', type=str, help='output decompiled file')
     parser.add_argument('-f', '--function', action="append", help="Function address")
@@ -101,6 +72,10 @@ if __name__ == '__main__':
     # input file
     with open(args.deasm) as deasm:
         data = deasm.readlines()
+
+
+    ControlStructure.diagrams = args.diagrams
+        
 
     if args.microcode == 'fuc':
         from fuc import *
@@ -159,6 +134,8 @@ if __name__ == '__main__':
         function_addrs = find_function_addresses(instructions).union(set(addrs))
         find_functions(instructions, function_addrs, code_memory)
 
+
+    # should be: first, evaluate memory accesses. Second, gather data from instructions
     memory_analyzer = MemoryStructureInstructionAnalyzer()
     memory_structure = memory_analyzer.find_memory_structures(code_memory.functions)
 
