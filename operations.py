@@ -3,12 +3,10 @@ import values
 def traceback_register(context, reg_spec):
     instructions, index, memory = context
     index = index - 1 
-    print 'getting', reg_spec
     while index >= 0:
         try:
             instruction = instructions[index]
             if reg_spec in instruction.get_modified_regs():
-                print 'found in', instruction
                 return instruction.get_result_value((instructions, index, memory), reg_spec)
 
             index -= 1
@@ -50,8 +48,6 @@ class MemoryAssignment:
             instruction.mark_chain(self.instruction.addr)
         
         self.instruction.replaced_by = self
-        print self.instruction
-        complete
 
     def get_memory_size(self):
         return self.instruction.size
@@ -65,7 +61,6 @@ class MemoryAssignment:
         size = self.get_memory_size()
         self.memory = self.data_SRAM.get_memory(self.base, self.offset, size)
         self.value = traceback_register((self.instructions, self.index, self.data_SRAM), self.instruction.source)
-        print self.value, '->', self.base, '+', self.offset
     
     def __str__(self):
         value = self.value

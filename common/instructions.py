@@ -48,9 +48,8 @@ class GenericInstruction:
     def get_result_value(self, context, reg_spec):
         instructions, index, memory = context
         state = self.arch.MachineState(memory)
-        print 'findin', reg_spec, 'after', self
+
         for reg in self.get_read_regs():
-            print reg
             value = operations.traceback_register(context, reg)
             try:
                 state.regs.set(reg, value)
