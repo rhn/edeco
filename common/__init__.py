@@ -25,6 +25,12 @@ class MemoryStructureInstructionAnalyzer:
             if instruction.stores_memory():
                 write_candidates.append(operations.MemoryAssignment(instructions, self.data_memory, i))
         
+        if 0:#instructions[0].address >= 0xd000439c:
+            print hex(instructions[0].address)
+            print write_candidates
+            raw_input()
+
         for candidate in write_candidates:
             candidate.traceback()
+
         self.analyzed_operations.extend(write_candidates)

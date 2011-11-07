@@ -89,9 +89,12 @@ class CallInstruction(instructions.GenericInstruction):
         return True
 
 
-class StoreInstruction(instructions.GenericInstruction):
+GenericInstruction = instructions.GenericInstruction
+
+
+class StoreInstruction(GenericInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        instructions.GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
         self.source = parse_reg(operands[0])
         self.base, self.offset = parse_memory_address(operands[1])
         self.size = 4
@@ -101,7 +104,35 @@ class StoreInstruction(instructions.GenericInstruction):
 
     def evaluate(self, machine_state):
         value = machine_state.read_register(self.source)
-        machine_state.write_memory(self.base, self.offset, 32, value)
+        machine_state.write_memory(self.base, self.offset, self.size, value)
+
+
+class MoveImmediateInstruction(GenericInstruction):
+    def __init__(self, arch, address, mnemonic, operands):
+        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        self.value = parse_imm(operands[1])
+        self.destination = parse_reg(operands[0])
+    
+    def evaluate(self, machine_state):
+        machine_state.write_register(self.destination, self.value)
+
+
+class LoadConstantInstruction(GenericInstruction):
+    def __init__(self, arch, address, mnemonic, operands):
+        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        self.value = parse_imm(operands[2])
+        self.destination = parse_reg(operands[0])
+    
+    def get_value(self, context, reg_spec):
+        print self
+        print 'get_value', reg_spec
+        ret = GenericInstruction.get_value(self, context, reg_spec)
+        print 'result', ret, repr(ret)
+        return ret
+        
+
+    def evaluate(self, machine_state):
+        machine_state.write_register(self.destination, self.value)
 
 
 instruction_map = {'retw': RetInstruction,
@@ -134,7 +165,10 @@ instruction_map = {'retw': RetInstruction,
                    'j': JumpInstruction,
                    'jx': JumpDynamicInstruction,
                    's32i': StoreInstruction,
-                   's32i.n': StoreInstruction}
+                   's32i.n': StoreInstruction,
+                   'movi': MoveImmediateInstruction,
+                   'movi.n': MoveImmediateInstruction,
+                   'l32r': LoadConstantInstruction}
 
 
 def Instruction(address, mnemonic, operands):
