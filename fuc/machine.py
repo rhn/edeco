@@ -1,6 +1,5 @@
 import memory
 import values
-import common.machine as machine
 
 
 class Registers:

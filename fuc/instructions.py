@@ -48,6 +48,12 @@ class BRAInstruction(GenericInstruction):
         else:
             self.condition = parse_imm(operands[0])
 
+    def jumps(self):
+        return True
+
+    def is_conditional(self):
+        return not self.condition
+
 
 class CALLInstruction(GenericInstruction):
     def __init__(self, arch, address, mnemonic, operands):
@@ -107,6 +113,9 @@ class STInstruction(GenericInstruction):
             offset = machine_state.read_register(self.offset)
         base = machine_state.read_register(self.base)
         machine_state.write_memory(base, offset, self.size, source)
+
+    def stores_memory(self):
+        return True
 
 
 class MOVInstruction(GenericInstruction):
