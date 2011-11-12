@@ -36,7 +36,7 @@ def parse_memory_address(operand):
 class BranchInstruction(instructions.GenericInstruction):
     def __init__(self, arch, address, mnemonic, operands):
         instructions.GenericInstruction.__init__(self, arch, address, mnemonic, operands)
-        if mnemonic.endswith('z'):
+        if mnemonic.endswith('z') or mnemonic.endswith('z.n'):
             target = operands[1]
         else:
             target = operands[2]
@@ -137,9 +137,13 @@ class LoadConstantInstruction(GenericInstruction):
 
 instruction_map = {'retw': RetInstruction,
                    'retw.n': RetInstruction,
+                   'ret': RetInstruction,
+                   'ret.n': RetInstruction,
                    'call': CallInstruction,
                    'beqz': BranchInstruction,
+                   'beqz.n': BranchInstruction,
                    'bnez': BranchInstruction,
+                   'bnez.n': BranchInstruction,
                    'bgez': BranchInstruction,
                    'bltz': BranchInstruction,
                    'beqi': BranchInstruction,
