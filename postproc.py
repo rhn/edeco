@@ -10,7 +10,7 @@ import argparse
 class ParsingError(ValueError): pass
 
 
-def parse_line_envydis(disasmline):
+def parse_line_envydis(arch, disasmline):
     """Typical format:
     012345: 01 23 45 67  BC mnemonic operand1 operand2
     address: opcode  FLAGS mnemonic operand1 operand2
@@ -31,7 +31,7 @@ def parse_line_envydis(disasmline):
     spl = instruction.strip().split()
     mnemonic = spl[0]
     operands = spl[1:]
-    return Instruction(addr, mnemonic, operands)
+    return arch.Instruction(addr, mnemonic, operands)
 
 
 def parse_functions_cmap_envydis(cmapline):
@@ -58,12 +58,27 @@ def find_functions(instructions, function_addrs, code_memory):
     return functions
 
 
+def parse_instructions(arch, lines):
+    # filter out instructions and parse them
+    instructions = []
+    for line in lines:
+        line = line.strip()
+        if not line.startswith('//') and not line == '' and not line.startswith('['):
+            try:
+                instructions.append(parse_line_envydis(arch, line))
+            except ParsingError, e:
+                #print e, 'line skipped'
+                pass
+    return instructions
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="decompile fuc")
     parser.add_argument('-m', '--microcode', type=str, choices=['fuc', 'xtensa'], required=True, help='microcode name')
     parser.add_argument('--cmap', type=str, help='code space map file')
     parser.add_argument('-g', '--greedy', action='store_true', default=False, help='try to encapsulate all code in functions')
     parser.add_argument('-d', '--diagrams', action='store_true', default=False, help='Generate control flow diagrams for unresolved control patterns. Requires pydot and graphviz')
+    parser.add_argument('-x', '--no-autodetect', action='store_true', default=False, help="Don't autodetect functions")
     parser.add_argument('deasm', type=str, help='input deasm file')
     parser.add_argument('deco', type=str, help='output decompiled file')
     parser.add_argument('-f', '--function', action="append", help="Function address")
@@ -78,23 +93,14 @@ if __name__ == '__main__':
         
 
     if args.microcode == 'fuc':
-        from fuc import *
+        import fuc as arch
     elif args.microcode == 'xtensa':
-        from xtensa import *
+        import xtensa as arch
     else:
         raise ValueError("ISA {0} unsupported".format(args.microcode))
     
 
-    # filter out instructions and parse them
-    instructions = []
-    for line in data:
-        line = line.strip()
-        if not line.startswith('//') and not line == '' and not line.startswith('['):
-            try:
-                instructions.append(parse_line_envydis(line))
-            except ParsingError, e:
-                #print e, 'line skipped'
-                pass
+    instructions = parse_instructions(arch, data)
 
     functions = {}
     if args.cmap:
@@ -131,19 +137,16 @@ if __name__ == '__main__':
                     addr = int(addr)
                 addrs.append(addr)
         
-        function_addrs = find_function_addresses(instructions).union(set(addrs))
+        function_addrs = set(addrs)
+        if not args.no_autodetect:
+            function_addrs.update(arch.find_function_addresses(instructions))
         find_functions(instructions, function_addrs, code_memory)
 
 
     # should be: first, evaluate memory accesses. Second, gather data from instructions
-    memory_analyzer = MemoryStructureInstructionAnalyzer()
+    memory_analyzer = arch.MemoryStructureInstructionAnalyzer()
     memory_structure = memory_analyzer.find_memory_structures(code_memory.functions)
 
-    '''
-    if len(sys.argv) > 3:
-        with open(sys.argv[2]) as debook:
-            known_functions = find_known_functions(debook)
-    '''
 
     with open(args.deco, 'w') as output:
         output.write(str(memory_structure))
