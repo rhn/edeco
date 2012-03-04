@@ -180,6 +180,7 @@ def compress_collision(tree, collision):
 
 
 class BulgeConnections:
+    """Class defining connections around Bulge"""
     def __init__(self):
         self.trees = []
         self.closures = []
@@ -191,6 +192,8 @@ class BulgeConnections:
                 self.trees.remove((connection, tree))
     
     def get_branch_sources(self, branch):
+        """Returns a list of sources leading to the branch"""
+        # TODO: is it possible for a tree to be connected from multiple points?
         sources = []
         for connection, tree in self.trees:
             if tree == branch:
@@ -302,8 +305,9 @@ class Bulge(Node):
         for dst_branch in self.outside_branches[:]:
             for join in get_joins(dst_branch):
                 if collision == join:
+                    branch_sources = self.connections.get_branch_sources(dst_branch)
                     self.outside_branches.remove(dst_branch)
-                    self.assimilate_bulge(compress_join(dst_branch, collision))
+                    self.assimilate_bulge(branch_sources, compress_join(dst_branch, collision))
                     return
                     
         raise Exception("Collision destination not in here. " + str(collision))

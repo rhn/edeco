@@ -120,6 +120,8 @@ if __name__ == '__main__':
     if not args.no_autodetect:
         function_addrs.update(arch.find_function_addresses(instructions))
     functions = find_functions(arch, instructions, function_addrs)
+    
+    # functions are now basic nested graphs of flow
 
     code_memory = memory.CodeMemory(functions, function_mapping)
 
