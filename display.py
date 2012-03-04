@@ -40,7 +40,49 @@ class LooseMessDisplay:
     
     def __str__(self):
         return 'UnconnectedUnknownFlow {{\n' + indent('\n'.join(map(str, self.insides))) + '\n}}'
+
+
+class ConnectedMessDisplay(LooseMessDisplay):
+    def get_display(self, closure):
+        for closuredisplay in self.insides:
+            if closure == closuredisplay.closure:
+                return closuredisplay
+                
+    def get_short_name(self, display):
+        return str(self.insides.index(display))
+                
+    def __str__(self):
+        inside = []
+
+        for closuredisplay in self.insides:
+            closure = closuredisplay.closure
+
+            preceding = []
+            for previous, next in self.closure.connections:
+                if next == closure:
+                    preceding.append(previous)
+
+            preceding_string = indent('\n'.join(map(str, preceding)), '// From: ') + '\n'
+
+            following = []
+            for previous, next in self.closure.connections:
+                if previous == closure:
+                    following.append(next)
+            if following:
+                following_string = '\n' + indent('\n'.join(map(str, following)), '// To: ')
+            else:
+                following_string = '\n// END'
+            
+            id_string = 'Item #' + self.get_short_name(closuredisplay) + ': '
+            inside.append(preceding_string + id_string + str(closuredisplay) + following_string)
         
+        starts = []
+        for source, target in self.closure.connections:
+            if source is None:
+                starts.append(self.get_short_name(self.get_display(target)))
+        starts_str = ' '.join(map(lambda x: '#' + str(x), starts))
+        
+        return 'UnknownFlow {{\n' + indent('// Start points: ' + starts_str + '\n\n' + '\n\n'.join(inside)) + '\n}}'
         
 class BananaDisplay:
     def __init__(self, closure, function_mappings):
@@ -65,6 +107,9 @@ def make_closuredisplay(closure, function_mappings):
         return LooseMessDisplay(closure, function_mappings)
     elif isinstance(closure, common.closures.Banana):
         return BananaDisplay(closure, function_mappings)
+    elif isinstance(closure, common.closures.ConnectedMess):
+        return ConnectedMessDisplay(closure, function_mappings)
+    raise TypeError('Unknown closure type ' + str(closure.__class__))
 
 
 class FunctionDisplay(BananaDisplay):

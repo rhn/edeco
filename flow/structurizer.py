@@ -21,7 +21,7 @@ def simplified_continuation(to_be_wrapped, start_node, joiners, branch):
 def simplified_bulge(to_be_wrapped, start_node, joiners, bulge):
     if len(bulge.outside_branches) == 1 and len(bulge.outside_joins) == 0:
         if len(bulge.closures) > 0:
-            to_be_wrapped.append(LooseMess(bulge.closures))
+            to_be_wrapped.append(ConnectedMess(bulge))
         return simplified_continuation(to_be_wrapped, start_node, joiners, bulge.outside_branches[0])
     else:
         wrapper = Banana()

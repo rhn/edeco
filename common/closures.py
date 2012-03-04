@@ -27,12 +27,6 @@ class Banana(Closure):
         return 'Banana' + str(self.closures)
     __repr__ = __str__
     
-    def into_code(self):
-        str_clos = []
-        for closure in self.closures:
-            str_clos.append(closure.into_code())
-        return 'B{{\n{0}\n}}'.format(indent('\n'.join(str_clos)))
-
 
 class NodeClosure(Closure):
     """Single node encapsulated into new graph structure"""
@@ -45,9 +39,9 @@ class NodeClosure(Closure):
 
     def __repr__(self):
         return str(self)
-
-    def into_code(self):
-        return str(self)
+        
+    def get_entry_address(self):
+        return self.node.instructions.instructions.address
 
 
 class LooseMess(Closure):
@@ -66,3 +60,13 @@ class LooseMess(Closure):
             str_clos.append(closure.into_code())
         return 'LooseMess {{{{\n{0}\n}}}}'.format(indent('\n'.join(str_clos)))
 
+
+class ConnectedMess(Closure):
+    """A closure with many small closures in it, contanis connection information."""
+    def __init__(self, bulge):
+        Closure.__init__(self, None)
+        self.closures = bulge.closures[:]
+        self.connections = bulge.connections.closures[:]
+    
+    def __str__(self):
+        return '{' + len(self.connections) + 'x | ' + ', '.join(map(str, self.closures)) + '}'

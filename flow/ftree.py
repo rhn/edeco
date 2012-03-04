@@ -130,9 +130,8 @@ def compress(tree, limit, compress_method):
     if compress_method == compress_join:
         if tree.contains_join(limit):
             bulge = Bulge()
-            bulge.outside_branches.append(tree)
+            bulge._insert_branch(None, tree) # _insert can be used instead of add if the tree is expected to be presimplified, which seems to be the case
             tree.drop_join(limit)
-            # bulge.add_branch(tree)
             return bulge
     
     outside_joins = []
@@ -182,9 +181,9 @@ def compress_collision(tree, collision):
 class BulgeConnections:
     """Class defining connections around Bulge"""
     def __init__(self):
-        self.trees = []
-        self.closures = []
-        self.joins = []
+        self.trees = [] # pairs (from_closure, to_branch)
+        self.closures = [] # pairs (from_closure, to_closure); if from is None then this is the attach point
+        self.joins = [] # pairs (from_outside_closure, to_closure)
 
     def remove_branch(self, branch):
         for connection, tree in self.trees[:]:
@@ -200,27 +199,32 @@ class BulgeConnections:
                 sources.append(connection)
         return sources
     
-    def _replace_start(self, new_start):
+    def _replace_start(self, new_start_closures):
         new_closures = []
         for source, destination in self.closures:
             if source is None:
-                source = new_start
-            new_closures.append((source, destination))
+                for new_start in new_start_closures:
+                    source = new_start
+                    new_closures.append((source, destination))
+            else:
+                new_closures.append((source, destination))
         self.closures = new_closures
         
     def insert_start(self, new_start, joins):
-        self._replace_start(new_start)
+        self._replace_start([new_start])
             
         self.closures.append((None, new_start))
         
         for join in joins:
             self.joins.append((join, new_start))
 
-    def assimilate_connections(self, join_closure, other):
-        other._replace_start(join_closure)
+    def assimilate_connections(self, join_closures, other):
+        print 'CLOSURES', self.closures, other.closures
+        other._replace_start(join_closures)
         self.trees.extend(other.trees)
         self.closures.extend(other.closures)
         self.joins.extend(other.joins)
+        print self.closures
         
 
 class Bulge(Node):
@@ -252,9 +256,11 @@ class Bulge(Node):
         self.outside_branches.remove(branch)
 
     def add_branch(self, tree):
+        """Adds branch and simplifies the whole bulge structure, swallowing trees if necessary."""
         print 'ADDING BRANCH', tree
         self._insert_branch(None, tree)
         self._cleanup_branches()
+        print self.connections.closures
     
     def drop_join(self, join):
         self.outside_joins.remove(join)
@@ -297,6 +303,7 @@ class Bulge(Node):
     
     def swallow_join(self, collision):
         """Swallows subtree leading to collision point, including that point"""
+        print 'SWALLOW JOIN'
         for join in self.outside_joins[:]:
             if collision == join:
                 self.outside_joins.remove(join)
@@ -314,10 +321,9 @@ class Bulge(Node):
     
     def swallow(self, collision):
         """Reaches out to collision point and swallows both subtrees leading to it"""
-        print 'before swallowing collision', self
         self.swallow_collision(collision)
-        print 'after swallowing collision', self
         self.swallow_join(collision)
+        self.connections.closures.append(collision)
     
     def assimilate_bulge(self, join_closures, other):
         """Swallows bulge other, internally connecting it using join_closures"""
