@@ -43,15 +43,47 @@ class LooseMessDisplay:
 
 
 class ConnectedMessDisplay(LooseMessDisplay):
+    """Controls all kind of display."""
+    # TODO: there should probably be a mapping closure->displaying owner, in case the owner decides to mangle/simplify structure
     def get_display(self, closure):
         for closuredisplay in self.insides:
             if closure == closuredisplay.closure:
                 return closuredisplay
                 
     def get_short_name(self, display):
-        return str(self.insides.index(display))
-                
+        return '#' + str(self.insides.index(display))
+    
+    def get_starting_subdisplays(self):
+        ret = []
+        for source, target in self.closure.connections:
+            if source is None:
+                ret.append(self.get_display(target))
+        return ret
+    
+    def _get_display_followers(self, display):
+        return [self.get_display(closure) for closure in self.closure.get_followers(display.closure)]
+    
+    def sort_depth_first(self):
+        """Sorts the nodes within this subgraph. Depth first within this graph, sorting internals of subgraphs is their responsibility."""
+        new_order = []
+        
+        def follow_deeper(display):
+            new_order.append(display)
+            followers = self._get_display_followers(display)
+            for follower in followers:
+                follow_deeper(follower)
+        
+        for start in self.get_starting_subdisplays(): # there can be a few starts, so need to do some breadth-first first
+            follow_deeper(start)
+        self.insides = new_order
+    
     def __str__(self):
+        def get_short_name(closure):
+            if closure is None:
+                return 'Start'
+            return self.get_short_name(self.get_display(closure))
+            
+        self.sort_depth_first()
         inside = []
 
         for closuredisplay in self.insides:
@@ -62,25 +94,22 @@ class ConnectedMessDisplay(LooseMessDisplay):
                 if next == closure:
                     preceding.append(previous)
 
-            preceding_string = indent('\n'.join(map(str, preceding)), '// From: ') + '\n'
+            preceding_string = indent('\n'.join(map(get_short_name, preceding)), '// From: ') + '\n'
 
             following = []
             for previous, next in self.closure.connections:
                 if previous == closure:
                     following.append(next)
             if following:
-                following_string = '\n' + indent('\n'.join(map(str, following)), '// To: ')
+                following_string = '\n' + indent('\n'.join(map(get_short_name, following)), '// To: ')
             else:
                 following_string = '\n// END'
             
-            id_string = 'Item #' + self.get_short_name(closuredisplay) + ': '
+            id_string = 'Item ' + self.get_short_name(closuredisplay) + ': '
             inside.append(preceding_string + id_string + str(closuredisplay) + following_string)
         
-        starts = []
-        for source, target in self.closure.connections:
-            if source is None:
-                starts.append(self.get_short_name(self.get_display(target)))
-        starts_str = ' '.join(map(lambda x: '#' + str(x), starts))
+        starts = self.get_starting_subdisplays()
+        starts_str = ' '.join(map(self.get_short_name, starts))
         
         return 'UnknownFlow {{\n' + indent('// Start points: ' + starts_str + '\n\n' + '\n\n'.join(inside)) + '\n}}'
         

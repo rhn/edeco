@@ -68,5 +68,12 @@ class ConnectedMess(Closure):
         self.closures = bulge.closures[:]
         self.connections = bulge.connections.closures[:]
     
+    def get_followers(self, closure):
+        followers = []
+        for source, destination in self.connections:
+            if source == closure:
+                followers.append(destination)
+        return followers
+    
     def __str__(self):
         return '{' + len(self.connections) + 'x | ' + ', '.join(map(str, self.closures)) + '}'
