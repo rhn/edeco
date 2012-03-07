@@ -67,6 +67,7 @@ class ConnectedMess(Closure):
         Closure.__init__(self, None)
         self.closures = bulge.closures[:]
         self.connections = bulge.connections.closures[:]
+        print 'FINALLY:', self.connections
     
     def get_followers(self, closure):
         followers = []
