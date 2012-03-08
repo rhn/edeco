@@ -31,17 +31,6 @@ def simplified_bulge(to_be_wrapped, start_node, joiners, bulge):
 
 class BFSClosureFinder:
     """Finds closures. Closes them up in functions.
-    Operation:
-    Treats subflows as nodes. Doesn't differentiate between following and preceding edges for the sole purpose of traversal, but for creation of subclosures.
-    General principle: travel through the graph bfs as if marking distances. Where front splits, create subclosures. Where fronts meet, join subclosures. Where one edge or none of a closure are running, finish the closure.
-    Think of holding a knotted string in the air by its unknotted end.
-
-    1. Go to next node.
-    2. If untraversed:
-        a) If split, mark it as new closure "seed" and perform 1. on all untraversed neighbors. Else mark it with same closure as before and proceed to next neighbor
-    else:
-        b) If other node mark same as this, closure found. collapse it, take its parent mark and continue. Else make seeds of both branches equivalent and terminate.
-    Go to 1.
     """
 
     def __init__(self, flow):
