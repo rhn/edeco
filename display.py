@@ -69,6 +69,8 @@ class ConnectedMessDisplay(LooseMessDisplay):
         new_order = []
         
         def follow_deeper(display):
+            if display in new_order:
+                return
             new_order.append(display)
             followers = self._get_display_followers(display)
             for follower in followers:
