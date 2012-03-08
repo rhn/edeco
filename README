@@ -1,7 +1,10 @@
-fuc & xtensa decompiler.
+fuc & xtensa deasm flow detector.
+Second incarnation.
+
 Requires Python 2.7+
 
-usage: postproc.py [-h] [-o ASMOFFSET] [-g] deasm deco
+usage: edeco.py [-h] -m {fuc,xtensa} [--cmap CMAP] [-x] [-f FUNCTION]
+                deasm deco
 
 positional arguments:
   deasm                 input deasm file
@@ -13,31 +16,32 @@ required arguments:
 
 optional arguments:
   -h, --help            show help message and exit
-  -g, --greedy          try to encapsulate all code in functions (fuc only)
+  --cmap CMAP           code space map file
+  -x, --no-autodetect   Don't autodetect functions
   -f FUNCTION, --function FUNCTION
-                        Function address to use with regular (non-greedy) function search (multiple entried accepted)
+                        Function address
+
 
 What it does:
-insert function headers
-find call addresses
-generate pseudocode for store instructions
-find and recognize simple control flow structures
-find and label memory structures
+Takes a deasm file, analyzes gotos and outputs a nicely formatted flow structure (asm pieces inside C-like braces where appropriate). works with arbitrarily entangled control flow.
 
-What it can easily do:
-find iowr/iost addresses
-find branch conditions
-
-What it could do with more effort:
-Find loop headings
-Remove instructions fully replaced by pseudocode
-Generate most of the code
-Recognize entangled control flow
-Emulate known instructions
-Take into account custom memory labels and function names
-Change labels/values interactively and emulate changed versions
+Gotchas:
+This version of the program does not cope well with goto/break/return - these break hierarchical control flow and it's not really possible to determine whether they are exits in terms of original C-like source code. Therefore they will always be followed until a single exit is found, which might make output messy. The lightest example is switch (first single exit at the end of statement) interpreted as a chain of if{}else{if{}else{...}}, the heaviest is a return from within a loop (first single exit is the end of the function) - total mess.
+Some of that might get improved in the future via smart guessing or hiding of control-only code.
 
 
-TODO:
-redesign machine-specific code to cleanly separate per-machine memory space, actual memory accesses, memory structure, memory structure hints (good first step: dumb per-machine memory space object)
-rebuild flow parser to be emulator-like (parsing as it goes, evaluate branch targets as it goes)
+What it will do again:
+* recognize simple control flow structures
+* find call addresses
+* generate pseudocode for store instructions
+* find and label memory structures
+
+What new it could do:
+* analyze data flow
+* find branch conditions
+* hide ASM blocks only used for control flow (and simplify flow graph further)
+* find iowr/iost addresses
+* find loop invariants
+* become an emulator
+* take into account custom memory labels and function names
+* become interactive

@@ -116,12 +116,9 @@ class FunctionFlowEmulator:
 
     def find_containing_subflow(self, index):
         """BFS over the whole graph to find the subflow node containing instruction indexed with index."""
-  #      print 'finding index', index
         nodes = [self.flow]
         traversed_nodes = set()
         while nodes:
- #           print nodes
-#            raw_input()
             new_nodes = []
             for node in nodes:
                 if not isinstance(node, StartNode) and not isinstance(node, EndNode):
@@ -138,7 +135,7 @@ class FunctionFlowEmulator:
         self.find_subflow(self.flow, start_index)
 
     def find_subflow(self, source, start_index):
-        print 'subflow after', source, 'starting', hex(self.instructions[start_index].address)
+#        print 'subflow after', source, 'starting', hex(self.instructions[start_index].address)
         def commit_flow(end_index):
             instructions = Instructions(self.instructions[start_index:end_index + 1], start_index, end_index + 1)
             subflow = Subflow(instructions)
@@ -147,7 +144,7 @@ class FunctionFlowEmulator:
 
         subflow = self.find_containing_subflow(start_index)
         if subflow:
-            print 'this comes back into', subflow
+#            print 'this comes back into', subflow
 
             if start_index != subflow.instructions.start_index:
         #        print 'sf', source.following
@@ -161,7 +158,7 @@ class FunctionFlowEmulator:
                 subflow.cut_before_index(start_index)
                 add_edge(presubflow, subflow)
                     
-                print 'rips it apart, results:', presubflow, subflow
+#                print 'rips it apart, results:', presubflow, subflow
     #            print 'sf', source.following
    #             print 'pp', presubflow.preceding
   #              print 'pf', presubflow.following
@@ -178,13 +175,13 @@ class FunctionFlowEmulator:
         for instruction in self.instructions[current_index:]:
             newest_instructions.append(instruction)
             if instruction.jumps():
-                print 'leaving', hex(self.instructions[start_index].address), 'from', hex(instruction.address)
+#                print 'leaving', hex(self.instructions[start_index].address), 'from', hex(instruction.address)
                 if not isinstance(instruction.target, int):
                     raise EmulationUnsupported("Function can't be traced, contains a dynamic jump.")
                 if instruction.is_conditional():
                     subflow = commit_flow(current_index)
                     self.find_subflow(subflow, current_index + 1)
-                    print 'again from', hex(instruction.address)
+#                    print 'again from', hex(instruction.address)
                     self.find_subflow(subflow, self.get_index(instruction.target))
                     return
                 else:
@@ -194,12 +191,12 @@ class FunctionFlowEmulator:
             elif instruction.breaks_function():
                 subflow = commit_flow(current_index)
                 add_edge(subflow, self._end)
-                print subflow, 'is *FINISH*ed'
+#                print subflow, 'is *FINISH*ed'
                 return
             
             post_subflow = self.find_containing_subflow(current_index + 1)
             if post_subflow:
-                print '*CRASH*es with', post_subflow
+#                print '*CRASH*es with', post_subflow
                 subflow = commit_flow(current_index)
                 add_edge(subflow, post_subflow)
                 return

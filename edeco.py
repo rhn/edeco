@@ -71,8 +71,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="decompile fuc")
     parser.add_argument('-m', '--microcode', type=str, choices=['fuc', 'xtensa'], required=True, help='microcode name')
     parser.add_argument('--cmap', type=str, help='code space map file')
-#    parser.add_argument('-g', '--greedy', action='store_true', default=False, help='try to encapsulate all code in functions')
-#    parser.add_argument('-d', '--diagrams', action='store_true', default=False, help='Generate control flow diagrams for unresolved control patterns. Requires pydot and graphviz')
     parser.add_argument('-x', '--no-autodetect', action='store_true', default=False, help="Don't autodetect functions")
     parser.add_argument('deasm', type=str, help='input deasm file')
     parser.add_argument('deco', type=str, help='output decompiled file')
@@ -82,10 +80,6 @@ if __name__ == '__main__':
     # input file
     with open(args.deasm) as deasm:
         data = deasm.readlines()
-
-
- #   ControlStructure.diagrams = args.diagrams
-        
 
     if args.microcode == 'fuc':
         import fuc as arch
