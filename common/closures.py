@@ -14,6 +14,7 @@ class Closure:
 
 
 class Banana(Closure):
+    """Linear flow, composed of 0 or more ordered Closures."""
     def __init__(self):
         Closure.__init__(self, None)
         
@@ -62,12 +63,11 @@ class LooseMess(Closure):
 
 
 class ConnectedMess(Closure):
-    """A closure with many small closures in it, contanis connection information."""
+    """A closure with many small closures in it, contains connection information."""
     def __init__(self, bulge):
         Closure.__init__(self, None)
         self.closures = bulge.closures[:]
         self.connections = bulge.connections.closures[:]
-        print 'FINALLY:', self.connections
     
     def get_followers(self, closure):
         followers = []

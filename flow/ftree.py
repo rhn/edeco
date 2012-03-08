@@ -12,6 +12,7 @@ def get_joins(tree):
         for join in tree.get_joins():
             yield join
 
+
 def get_collisions(tree):
     if isinstance(tree, Collision):
         yield tree.get_collision()
@@ -26,6 +27,7 @@ def get_collisions(tree):
     if isinstance(tree, Bulge):
         for collision in tree.get_collisions():
             yield collision
+
 
 def collides_with(collision, tree):
     for join in get_joins(tree):
@@ -127,7 +129,6 @@ def compress_join(tree, limit):
             if limit in get_joins(branch):
                 bulge, branch = compress_join(branch, limit)
                 tree.outside_branches.remove(branch)
-#                 print 'COMPRESS JOIN ASSIMILATE'
                 tree.assimilate_bulge(bulge)
                 # tree.replace_outside_branch(branch, bulge.startnodes)
                 return tree, branch
@@ -137,7 +138,6 @@ def compress_join(tree, limit):
         bulge = Bulge()
         bulge._insert_branch(None, tree) # _insert can be used instead of add if the tree is expected to be presimplified, which seems to be the case
         tree.drop_join(limit)
-        # FIXME: information lost
         return bulge, tree
     
     outside_joins = []
@@ -159,7 +159,6 @@ def compress_collision(tree, collision):
     if isinstance(tree, Stub):
         if tree.get_collision() == collision:
             bulge = Bulge()
-            print 'STUB', bulge
             return bulge, None
         else:
             raise Exception("stub reached but it's not the one. BUG")
@@ -172,13 +171,10 @@ def compress_collision(tree, collision):
                 bulge, closure = compress_collision(branch, collision)
                 
                 if closure is None:
-                    # sanity check
                     if len(source_closures) != 1:
                         raise Exception("BUG")
                     closure = source_closures[0]
-    #            print 'COMPRESS COLLISION ASSIMILATE'
                 tree.assimilate_bulge(source_closures, bulge)
-     #           print 'AFTER COMPRESS', tree
                 return tree, closure
         raise Exception("collision limit not found in bulge")
     
@@ -198,7 +194,7 @@ def compress_collision(tree, collision):
             bulge = Bulge()
             bulge._insert_start(tree.wrapper, outside_joins)
             return bulge, tree.wrapper
-        raise Exception("Todo. Or bug?")
+        raise Exception("Probably bug?")
 
     print tree
     raise Exception(str(tree.__class__) + " unsupported")
@@ -231,6 +227,17 @@ class BulgeConnections:
                 return closure
         raise ValueError("No such join: " + str(join)) 
     
+    def drop_join(self, target_join):
+        return # XXX: test whether the new code breaks anything
+        new_joins = []
+        for joinpair in self.joins:
+            join, destination = joinpair
+            if join != target_join:
+                new_joins.append(joinpair)
+        if len(new_joins) == len(self.joins):
+            raise ValueError("Target join not found")
+        self.joins = new_joins
+    
     def _replace_start(self, new_start_closures):
         new_closures = []
         for source, destination in self.closures:
@@ -262,12 +269,10 @@ class BulgeConnections:
             self.joins.append((join, new_start))
 
     def assimilate_connections(self, join_closures, other):
-#        print 'CLOSURES', self.closures, other.closures
         other._replace_start(join_closures)
         self.trees.extend(other.trees)
         self.closures.extend(other.closures)
         self.joins.extend(other.joins)
-#        print self.closures
     
     def __str__(self):
         return 'Conn(' + ', '.join(map(str, (self.closures, self.trees, self.joins))) + ')'
@@ -288,13 +293,9 @@ class Bulge(Node):
         return 'B' + str(self.closures)
 
     def _insert_start(self, closure, joins):
-        print 'inserting start', closure, 'to', self
         self.closures.append(closure)
         self.outside_joins.extend(joins)
-        
         self.connections.insert_start(closure, joins)
-        print 'after inserting', self
-        raw_input()
 
     def _insert_branch(self, source, branch):
         self.connections.trees.append((source, branch))
@@ -306,13 +307,13 @@ class Bulge(Node):
 
     def add_branch(self, tree):
         """Adds branch and simplifies the whole bulge structure, swallowing trees if necessary."""
-        print 'ADDING BRANCH', tree
+#        print 'ADDING BRANCH', tree
         self._insert_branch(None, tree)
         self._cleanup_branches()
     
     def drop_join(self, join):
         self.outside_joins.remove(join)
-        # FIXME: drop the join from connections
+        self.connections.drop_join(join)
     
     def _cleanup_branches(self):
         """Merges all joins that have corresponding splits within the tree, including in the same branch."""
@@ -331,7 +332,7 @@ class Bulge(Node):
         # clean up the collisions. can't save the trees where they originate: those trees might get swallowed
         
         for collision in collisions:
-            print 'FOUND', collision
+#            print 'FOUND', collision
             self.swallow(collision)
 
     def get_collisions(self):
@@ -379,12 +380,10 @@ class Bulge(Node):
     
     def assimilate_bulge(self, join_closures, other):
         """Swallows bulge other, internally connecting it to join_closures"""
-        print 'SWALLOWING', other, 'INTO', self, 'USING', join_closures
         self.closures.extend(other.closures)
         self.outside_branches.extend(other.outside_branches)
         self.outside_joins.extend(other.outside_joins)
         self.connections.assimilate_connections(join_closures, other.connections)
-        print 'SWALLOWED', self
     
     def get_joins(self):
         for join in self.outside_joins:

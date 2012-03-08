@@ -4,6 +4,16 @@ import structurizer
 from common import closures
 from exceptions import *
 
+"""Flow detection is performed in steps. It starts with flat instructions. The process:
+Instructions -> flat flow graph -> nested flow graphs.
+
+Instructions are architecture-dependent. They need to be turned into the simplest possible architecture-independent representation of flow. This representation is a directed graph of relationships between continuous flow blocks. Currently, this step of the process is contained within flow/emulator.py.
+
+The architecture-independent flow representation is suboptimal in this form - self-contained flow structures are not coupled together.
+The second transformations tries to find smallest possible irreduceable bunches of flows (e.g. a whole if/else structure or a loop) and define biggest possible substructures inside them (e.g the insides of "if" and "else" inside the whole if/else structure. These basic structures are *not* identified here. Instead, the language display should interpret them.
+The structure of the resulting graph is defined in closures.py.
+This transformation is performed in structurizer.py.
+"""
 
 class Function:
     """Basic structure of the code: nested graphs of code blocks - enough to describe control flow. No postprocessing is done here.

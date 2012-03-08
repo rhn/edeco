@@ -2,6 +2,23 @@ from ftree import *
 from common.closures import *
 
 
+"""Converts flat flow graphs into structured (nested) graphs.
+
+The process technically consists of 2 steps, but this code performs them at the same time.
+
+First "step" is the creation of a spanning tree which remembers the following information: what other nodes (except of direct parent) join this one and which node this one joins into (except direct child). These two will be referred to as "join" and "collision". Each join must have a correspoinding collision.
+
+The tree is built from objects in ftree.py. Note that there is no "split" object. Instead, Bulge (belonging more to the next step) is used.
+
+After the tree is finished, it's compressed into a nested graph of graphs of Closures. Tree is traversed depth-first, recursively. While going forward, Banana objects are started in order to contain linear flow fragments as big as possible. Linear flow in this understanding is a chain A0->A1->... where Ax is a code block or a subgraph and for x > 0 only A(x-1) flows into Ax.
+
+While going back, relationships between ftree objects are evaluated. If there are any unresolved joins/collisions, a Bulge is created and passed back. If all joins/collisions are resolved, the ftree object is simplified and turned into Closures.
+TODO: Describe in detail.
+
+DISCLAIMER: this code is unnecessarily complex, undocumented, expensive, excessively layered and generally unmaintainable. But it works and it's the most effort per LOC I ever made, so there will be no improvements unless required :)
+"""
+
+
 def simplified_continuation(to_be_wrapped, start_node, joiners, branch):
     if isinstance(branch, Stub):
         wrapper = Banana()
@@ -29,7 +46,7 @@ def simplified_bulge(to_be_wrapped, start_node, joiners, bulge):
         return Continuation(wrapper, start_node, joiners, bulge)
     
 
-class BFSClosureFinder:
+class ClosureFinder:
     """Finds closures. Closes them up in functions.
     """
 
@@ -52,7 +69,7 @@ class BFSClosureFinder:
         def split_action(to_be_wrapped, start_node, joiners, current_node):
             to_be_wrapped.append(wrap_node(current_node)) # last node of the wrap
             
-            print 'split from', current_node, 'to', current_node.following, 'with', to_be_wrapped
+#            print 'split from', current_node, 'to', current_node.following, 'with', to_be_wrapped
             
             if len(current_node.following) < 2:
                 raise Exception("less-than-2-split. Should have been bananized or dead-ended, BUG")
@@ -69,21 +86,21 @@ class BFSClosureFinder:
                     branch = Stub(current_node, next)
                 branches.append(branch)
                 
-            print '  Returned from split after', current_node
+#            print '  Returned from split after', current_node
             bulge = Bulge()
             for branch in branches:
                 bulge.add_branch(branch)
             
-            print 'result\n', bulge
+#            print 'result\n', bulge
             
             return simplified_bulge(to_be_wrapped, start_node, joiners, bulge)
 
         def join_action(to_be_wrapped, start_node, joiners, previous_node, join_target):
             # regular join: start a single banana. Even if it splits immediately, the subbanana detects it
-            print 'proceeding past join to', join_target, 'with', to_be_wrapped, 'joining', joiners
+#            print 'proceeding past join to', join_target, 'with', to_be_wrapped, 'joining', joiners
             branch = dft_action(join_target, previous_node, just_joined=True) # start new banana as child
             # result contains join_target
-            print 'returned from join before', join_target
+#            print 'returned from join before', join_target
             # two options: goes to finish or joins with something before it
             
             # if it goes straight to end without joining past stuff then nothing can be done. They will end up being wrapped in each other (continuations and bulges)
@@ -109,8 +126,8 @@ class BFSClosureFinder:
                 bulge.add_branch(branch)
                 
                 ret = simplified_bulge(to_be_wrapped, start_node, joiners, bulge)
-                print 'joined result'
-                print ret
+#                print 'joined result'
+#                print ret
                 return ret
                 
             # didn't curl itself, so touched something other than the join here.
@@ -121,16 +138,16 @@ class BFSClosureFinder:
             wrapper.finish(to_be_wrapped) # will never be modified again, can forget about those nodes
             
             ret = Continuation(wrapper, start_node, joiners, branch)
-            print ret
+#            print ret
             return ret
 
         def collision_action(to_be_wrapped, start_node, joiners, end_node, collision_target):
             # what if join with the banana that was just made? Only can join its first node
             # answer: banana inside, FlowPattern around it. Therefore parent action must detect & wrap this (dead end)
-            print 'collision with visited', collision_target, 'from', to_be_wrapped
+#            print 'collision with visited', collision_target, 'from', to_be_wrapped
             wrapper = Banana()
             wrapper.finish(to_be_wrapped)
-            print wrapper
+#            print wrapper
             return Collision(wrapper, start_node, joiners, end_node, collision_target) # need to let parent know what was touched
 
 
@@ -146,8 +163,8 @@ class BFSClosureFinder:
         
         def dft_action(node, source_node, just_joined=False): # one piece of action: bananize until split/join
             """Creates tree branch at node, from source_node as tree root"""
-            raw_input()
-            print 'start with', node, 'from', source_node
+#            raw_input()
+#            print 'start with', node, 'from', source_node
 
             start_node = node
             joiners = [] # nodes thtat join to beginning of this banana
@@ -164,7 +181,7 @@ class BFSClosureFinder:
                     preceders.remove(source_node)
                 joiners = preceders
             
-            print 'joiners', joiners, 'just_joined', just_joined, 'preceding', node.preceding
+#            print 'joiners', joiners, 'just_joined', just_joined, 'preceding', node.preceding
             # bananize until a node with join/split or visited. If visited, then already bananized and stop before.
             # if join, stop before node. If split, put node inside too.
 
@@ -183,10 +200,10 @@ class BFSClosureFinder:
                 to_be_wrapped.append(wrap_node(node))
                 
                 if len(node.following) == 0:
-                    print 'end reached', node
+#                    print 'end reached', node
                     wrapper = Banana()
                     wrapper.finish(to_be_wrapped)
-                    print wrapper
+#                    print wrapper
                     return UltimateEnd(wrapper, start_node, joiners)
                 previous_node = node
                 node = node.following[0]
@@ -195,10 +212,9 @@ class BFSClosureFinder:
             raise Exception("Ha-ha. Impossible to even get here.")
                 
         result = dft_action(node, None)
-        print result
-        #print result.into_code()
+#        print result
         return result.wrapper
         
 
 def structurize(flat_graph):
-    return BFSClosureFinder(flat_graph).closure
+    return ClosureFinder(flat_graph).closure
