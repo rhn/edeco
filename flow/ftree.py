@@ -370,7 +370,11 @@ class Bulge(Node):
                         self.connections.trees.append((colliding_closure, joined_branch))
                     else:
                         if joined_branch != bulge:
-                            raise Exception("Bug. Branch joined into must be carried over to the bottom in the current implementation.")
+                            if internal not in bulge.closures:
+                                print internal
+                                print joined_branch
+                                print bulge
+                                raise Exception
                         self.connections.closures.append((colliding_closure, internal))
                     return
                     
