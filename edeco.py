@@ -74,7 +74,7 @@ if __name__ == '__main__':
     parser.add_argument('-x', '--no-autodetect', action='store_true', default=False, help="Don't autodetect functions")
     parser.add_argument('deasm', type=str, help='input deasm file')
     parser.add_argument('deco', type=str, help='output decompiled file')
-    parser.add_argument('-f', '--function', action="append", help="Function address")
+    parser.add_argument('-f', '--function', action="append", help="Function address: decimal (123) or hex (0x12ab)")
     args = parser.parse_args()
 
     # input file

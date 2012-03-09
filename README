@@ -3,6 +3,8 @@ Second incarnation.
 
 Requires Python 2.7+
 
+For current usage, refer to edeco.py -h.
+
 usage: edeco.py [-h] -m {fuc,xtensa} [--cmap CMAP] [-x] [-f FUNCTION]
                 deasm deco
 
@@ -19,8 +21,7 @@ optional arguments:
   --cmap CMAP           code space map file
   -x, --no-autodetect   Don't autodetect functions
   -f FUNCTION, --function FUNCTION
-                        Function address
-
+                        Function address: decimal (123) or hex (0x12ab)
 
 What it does:
 Takes a deasm file, analyzes gotos and outputs a nicely formatted flow structure (asm pieces inside C-like braces where appropriate). works with arbitrarily entangled control flow.
