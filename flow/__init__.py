@@ -38,6 +38,6 @@ def into_function(address, nested_graph):
 
 
 def detect_function(arch, instructions, start_address):
-    flat_graph = emulator.emulate_flow(arch, instructions, start_address)
+    flat_graph = arch.detect_flow(instructions, start_address)
     nested_graph = structurizer.structurize(flat_graph)
     return into_function(start_address, nested_graph)

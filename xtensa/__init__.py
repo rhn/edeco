@@ -2,6 +2,13 @@ from instructions import Instruction
 import memory
 import operations
 import common
+import flow.emulator
+
+
+def detect_flow(instructions, start_address):
+    """Creates a flat flow graph."""
+    flow_emulator = flow.emulator.FunctionFlowEmulator(instructions, start_address)
+    return flow_emulator.flow
 
 
 def find_function_addresses(parsed_code):

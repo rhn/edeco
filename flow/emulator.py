@@ -81,11 +81,29 @@ class EndNode(Node):
         return neighbors
 
 
+class FlowInstruction:
+    """Base class for instructions compatible with FunctionFlowEmulator."""
+    def jumps(self):
+        """Returns True if jumps. If it does, must define address."""
+        return False
+
+    def is_conditional(self):
+        """Returns True if branch doesn't always happen. Present only if .jumps() returns True."""
+        raise NotImplementedError
+        
+    def breaks_function(self):
+        """Returns True if provides an alternate exit for the function (e.g. return). Present only if .jumps() returns True."""
+        raise NotImplementedError
+
+
 class FunctionFlowEmulator:
-    """Finds flow graph by emulating instructions.
-    For future reference: ditching all results on a jump into parsed code should be acceptable.
+    """Finds flow graph by emulating instructions. Base class for architectures without branch delays and other fancy stuff.
+    On instantiation, resulting flow tree is found in instance.flow
+    
+    Depends on instructions with the interface of FlowInstruction.
     """
     """Notes:
+    For future reference: ditching all results on a jump into parsed code should be acceptable.
     store Subflow tree self.currently_detected_flow
     pass current leaf to find_subflow, ALWAYS must be attached to stored root
     finish and append a leaf as soon as jump is detected
@@ -102,8 +120,7 @@ class FunctionFlowEmulator:
     """
     """Chosen: store subflows normally, separate following (splits) and preceding (joins) flows, make no exception for "straight" flow.
     """
-    def __init__(self, arch, instructions, start_address):
-        self.arch = arch
+    def __init__(self, instructions, start_address):
         self.instructions = instructions
         self.flow = StartNode()
         self._end = EndNode()
@@ -202,8 +219,4 @@ class FunctionFlowEmulator:
                 return
     #        print 'crashes not'
 
-            current_index += 1    
-
-
-def emulate_flow(arch, instructions, start_index):
-    return FunctionFlowEmulator(arch, instructions, start_index).flow
+            current_index += 1

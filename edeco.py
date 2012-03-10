@@ -68,7 +68,7 @@ def parse_instructions(arch, lines):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="decompile fuc")
+    parser = argparse.ArgumentParser(description="Detects control flow in assembly files.")
     parser.add_argument('-m', '--microcode', type=str, choices=['fuc', 'xtensa'], required=True, help='microcode name')
     parser.add_argument('--cmap', type=str, help='code space map file')
     parser.add_argument('-x', '--no-autodetect', action='store_true', default=False, help="Don't autodetect functions")
