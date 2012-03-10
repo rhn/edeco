@@ -9,3 +9,6 @@ class FunctionBoundsException(InvalidCodeError):
 
 class EmulationUnsupported(FlowDetectionError):
     pass
+    
+class EmulatorOutOfBounds(FlowDetectionError):
+    pass

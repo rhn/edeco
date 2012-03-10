@@ -2,10 +2,11 @@ import operations
 
 
 class GenericInstruction:
-    def __init__(self, architecture, address, mnemonic, operands):
+    def __init__(self, architecture, address, opcode, mnemonic, operands):
         self.arch = architecture
         self.addr = address
         self.address = self.addrtoint()
+        self.opcode = opcode
         self.mnemonic = mnemonic
         self.operands = operands
 
@@ -62,14 +63,14 @@ class GenericInstruction:
         return False
 
 
-def Instruction(architecture, address, mnemonic, operands, instruction_map, default_class):
+def Instruction(architecture, address, opcode, mnemonic, operands, instruction_map, default_class):
     """Creates instructions based on instruction_map"""
     try:
         cls = instruction_map[mnemonic]
     except KeyError:
         cls = default_class
     try:
-        return cls(architecture, address, mnemonic, operands)
+        return cls(architecture, address, opcode, mnemonic, operands)
     except:
-        print GenericInstruction(architecture, address, mnemonic, operands)
+        print GenericInstruction(architecture, address, opcode, mnemonic, operands)
         raise

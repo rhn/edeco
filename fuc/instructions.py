@@ -54,8 +54,8 @@ class SimpleInstruction(FucInstruction):
 
 
 class BRAInstruction(FucInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        FucInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        FucInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.target = parse_imm(operands[-1])
         if len(operands) == 1:
             self.condition = ''
@@ -76,8 +76,8 @@ class BRAInstruction(FucInstruction):
 
 
 class CALLInstruction(FucInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        FucInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        FucInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.function = parse_imm(operands[0])
 
     def jumps(self):
@@ -102,8 +102,8 @@ class RETInstruction(FucInstruction):
 
 
 class LDInstruction(SimpleInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        SimpleInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.size = parse_size(operands[0])
         self.destination = operands[1]
         
@@ -125,8 +125,8 @@ class LDInstruction(SimpleInstruction):
 
 
 class STInstruction(SimpleInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        SimpleInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.size = parse_size(operands[0])
         self.source = operands[2]
         
@@ -151,8 +151,8 @@ class STInstruction(SimpleInstruction):
 
 
 class MOVInstruction(SimpleInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        SimpleInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.source = parse_reg_or_imm(operands[1])
         self.destination = operands[0]
 
@@ -165,8 +165,8 @@ class MOVInstruction(SimpleInstruction):
 
 
 class CLEARInstruction(SimpleInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        SimpleInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.size = operands[0]
         self.destination = operands[1]
 
@@ -183,8 +183,8 @@ class CLEARInstruction(SimpleInstruction):
 
 
 class ANDInstruction(SimpleInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        SimpleInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.destination = operands[0]
         self.source1 = operands[-2]
         self.source2 = parse_reg_or_imm(operands[-1])
@@ -199,8 +199,8 @@ class ANDInstruction(SimpleInstruction):
 
 
 class SETHIInstruction(SimpleInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        SimpleInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.destination = operands[0]
         self.source = parse_imm(operands[1])
 
@@ -221,5 +221,5 @@ instruction_map = {'ld': LDInstruction,
                    'ret': RETInstruction}
 
 
-def Instruction(address, mnemonic, operands):
-    return instructions.Instruction(machine.Architecture, address, mnemonic, operands, instruction_map, SimpleInstruction)
+def Instruction(address, opcode, mnemonic, operands):
+    return instructions.Instruction(machine.Architecture, address, opcode, mnemonic, operands, instruction_map, SimpleInstruction)
