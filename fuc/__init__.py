@@ -16,7 +16,7 @@ def find_function_addresses(parsed_code):
     function_addrs = []
 
     for instruction in parsed_code:
-        if instruction.calls_function():
+        if instruction.calls_function() and (isinstance(instruction.function, int) or isinstance(instruction.function, long)):
             function_addrs.append(instruction.function)
     return set(function_addrs)
 

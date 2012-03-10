@@ -130,6 +130,7 @@ class FunctionFlowEmulator:
         for i, instr in enumerate(self.instructions):
             if instr.address == address:
                 return i
+        raise FunctionBoundsException("Address 0x{0:x} out of this code block.".format(address))
 
     def find_containing_subflow(self, index):
         """BFS over the whole graph to find the subflow node containing instruction indexed with index."""

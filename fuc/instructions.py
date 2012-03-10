@@ -1,8 +1,6 @@
 import machine
 import common.instructions as instructions
-
-
-GenericInstruction = instructions.GenericInstruction
+import flow.emulator
 
 
 def parse_size(operand):
@@ -39,9 +37,25 @@ def parse_address(addr):
     return addr, '0'
 
 
-class BRAInstruction(GenericInstruction):
+class FucInstruction(instructions.GenericInstruction, flow.emulator.FlowInstructionMixIn):
+    def calls_function(self):
+        raise NotImplementedError
+
+
+class SimpleInstruction(FucInstruction):
+    def jumps(self):
+        return False
+    
+    def breaks_function(self):
+        return False
+
+    def calls_function(self):
+        return False
+
+
+class BRAInstruction(FucInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        FucInstruction.__init__(self, arch, address, mnemonic, operands)
         self.target = parse_imm(operands[-1])
         if len(operands) == 1:
             self.condition = ''
@@ -53,25 +67,43 @@ class BRAInstruction(GenericInstruction):
 
     def is_conditional(self):
         return not self.condition
+        
+    def breaks_function(self):
+        return False
+
+    def calls_function(self):
+        return False
 
 
-class CALLInstruction(GenericInstruction):
+class CALLInstruction(FucInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        FucInstruction.__init__(self, arch, address, mnemonic, operands)
         self.function = parse_imm(operands[0])
 
+    def jumps(self):
+        return False
+    
+    def breaks_function(self):
+        return False
+    
     def calls_function(self):
         return True
 
 
-class RETInstruction(GenericInstruction):
+class RETInstruction(FucInstruction):
+    def jumps(self):
+        return False
+
     def breaks_function(self):
         return True
+        
+    def calls_function(self):
+        return False
 
 
-class LDInstruction(GenericInstruction):
+class LDInstruction(SimpleInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
         self.size = parse_size(operands[0])
         self.destination = operands[1]
         
@@ -92,9 +124,9 @@ class LDInstruction(GenericInstruction):
         machine_state.write_register(self.destination, value)
 
 
-class STInstruction(GenericInstruction):
+class STInstruction(SimpleInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
         self.size = parse_size(operands[0])
         self.source = operands[2]
         
@@ -118,9 +150,9 @@ class STInstruction(GenericInstruction):
         return True
 
 
-class MOVInstruction(GenericInstruction):
+class MOVInstruction(SimpleInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
         self.source = parse_reg_or_imm(operands[1])
         self.destination = operands[0]
 
@@ -132,9 +164,9 @@ class MOVInstruction(GenericInstruction):
         machine_state.write_register(self.destination, value)
 
 
-class CLEARInstruction(GenericInstruction):
+class CLEARInstruction(SimpleInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
         self.size = operands[0]
         self.destination = operands[1]
 
@@ -150,9 +182,9 @@ class CLEARInstruction(GenericInstruction):
         machine_state.write_register(self.destination, value)
 
 
-class ANDInstruction(GenericInstruction):
+class ANDInstruction(SimpleInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
         self.destination = operands[0]
         self.source1 = operands[-2]
         self.source2 = parse_reg_or_imm(operands[-1])
@@ -166,9 +198,9 @@ class ANDInstruction(GenericInstruction):
         machine_state.write_register(self.destination, s1 & s2)
 
 
-class SETHIInstruction(GenericInstruction):
+class SETHIInstruction(SimpleInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
         self.destination = operands[0]
         self.source = parse_imm(operands[1])
 
@@ -190,4 +222,4 @@ instruction_map = {'ld': LDInstruction,
 
 
 def Instruction(address, mnemonic, operands):
-    return instructions.Instruction(machine.Architecture, address, mnemonic, operands, instruction_map)
+    return instructions.Instruction(machine.Architecture, address, mnemonic, operands, instruction_map, SimpleInstruction)
