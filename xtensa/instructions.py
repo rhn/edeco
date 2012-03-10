@@ -1,5 +1,6 @@
 from common import instructions
 import machine
+import flow.emulator
 
 
 def parse_imm(operand):
@@ -33,9 +34,25 @@ def parse_memory_address(operand):
         return base, offset
 
 
-class BranchInstruction(instructions.GenericInstruction):
+class XtensaInstruction(instructions.GenericInstruction, flow.emulator.FlowInstructionMixIn):
+    def calls_function(self):
+        raise NotImplementedError
+
+
+class SimpleInstruction(XtensaInstruction):
+    def jumps(self):
+        return False
+    
+    def breaks_function(self):
+        return False
+
+    def calls_function(self):
+        return False
+
+
+class BranchInstruction(XtensaInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        instructions.GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        XtensaInstruction.__init__(self, arch, address, mnemonic, operands)
         if mnemonic.endswith('z') or mnemonic.endswith('z.n'):
             target = operands[1]
         else:
@@ -49,10 +66,14 @@ class BranchInstruction(instructions.GenericInstruction):
     def is_conditional(self):
         return True
 
+    def calls_function(self):
+        return False
 
-class JumpInstruction(instructions.GenericInstruction):
+
+
+class JumpInstruction(XtensaInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        instructions.GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        XtensaInstruction.__init__(self, arch, address, mnemonic, operands)
         self.target = parse_imm(operands[0])
 
     def jumps(self):
@@ -61,10 +82,13 @@ class JumpInstruction(instructions.GenericInstruction):
     def is_conditional(self):
         return False
 
+    def calls_function(self):
+        return False
 
-class JumpDynamicInstruction(instructions.GenericInstruction):
+
+class JumpDynamicInstruction(XtensaInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        instructions.GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        XtensaInstruction.__init__(self, arch, address, mnemonic, operands)
         self.target = parse_reg(operands[0])
 
     def jumps(self):
@@ -73,28 +97,40 @@ class JumpDynamicInstruction(instructions.GenericInstruction):
     def is_conditional(self):
         return False
 
+    def calls_function(self):
+        return False
 
-class RetInstruction(instructions.GenericInstruction):
+
+class RetInstruction(XtensaInstruction):
+    def jumps(self):
+        return False
+        
     def breaks_function(self):
         return True
 
+    def calls_function(self):
+        return False
 
-class CallInstruction(instructions.GenericInstruction):
-    """Doesn't support the 0x8 thing (first mnemonic)"""
+
+class CallInstruction(XtensaInstruction):
+    """Doesn't support the 0x8 thing (first operand)"""
     def __init__(self, arch, address, mnemonic, operands):
-        instructions.GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        XtensaInstruction.__init__(self, arch, address, mnemonic, operands)
         self.function = parse_imm(operands[1])
+        
+    def jumps(self):
+        return False
+    
+    def breaks_function(self):
+        return False
 
     def calls_function(self):
         return True
 
 
-GenericInstruction = instructions.GenericInstruction
-
-
-class StoreInstruction(GenericInstruction):
+class StoreInstruction(SimpleInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
         self.source = parse_reg(operands[0])
         self.base, self.offset = parse_memory_address(operands[1])
         self.size = 4
@@ -107,9 +143,9 @@ class StoreInstruction(GenericInstruction):
         machine_state.write_memory(self.base, self.offset, self.size, value)
 
 
-class MoveImmediateInstruction(GenericInstruction):
+class MoveImmediateInstruction(SimpleInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
         self.value = parse_imm(operands[1])
         self.destination = parse_reg(operands[0])
     
@@ -117,16 +153,16 @@ class MoveImmediateInstruction(GenericInstruction):
         machine_state.write_register(self.destination, self.value)
 
 
-class LoadConstantInstruction(GenericInstruction):
+class LoadConstantInstruction(SimpleInstruction):
     def __init__(self, arch, address, mnemonic, operands):
-        GenericInstruction.__init__(self, arch, address, mnemonic, operands)
+        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
         self.value = parse_imm(operands[2])
         self.destination = parse_reg(operands[0])
     
     def get_value(self, context, reg_spec):
         print self
         print 'get_value', reg_spec
-        ret = GenericInstruction.get_value(self, context, reg_spec)
+        ret = SimpleInstruction.get_value(self, context, reg_spec)
         print 'result', ret, repr(ret)
         return ret
         
@@ -176,4 +212,4 @@ instruction_map = {'retw': RetInstruction,
 
 
 def Instruction(address, mnemonic, operands):
-    return instructions.Instruction(machine.Architecture, address, mnemonic, operands, instruction_map)
+    return instructions.Instruction(machine.Architecture, address, mnemonic, operands, instruction_map, SimpleInstruction)

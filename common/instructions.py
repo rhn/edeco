@@ -58,35 +58,16 @@ class GenericInstruction:
         self.evaluate(state)
         return state.regs.get(reg_spec)
 
-    # FLOW DETECTION METHODS. PAY SPECIAL ATTENTION TO CAPTURE ALL INSTRUCTIONS
-    def jumps(self):
-        """Returns True if this instruction orders a jump - with a branch delay slot or without one. Must have "target" attribute with jump address.
-        """
-        return False
-
-    def calls_function(self):
-        """Returns True if calls a function. Must have "function" attribute with function address.
-        """
-        return False
-
-    def breaks_function(self):
-        """Returns True if causes a return from a function."""
-        return False
-
-    def is_conditional(self):
-        """Returns true is jump is conditional"""
-        raise NotImplementedError
-
     def stores_memory(self):
         return False
 
 
-def Instruction(architecture, address, mnemonic, operands, instruction_map):
+def Instruction(architecture, address, mnemonic, operands, instruction_map, default_class):
     """Creates instructions based on instruction_map"""
     try:
         cls = instruction_map[mnemonic]
     except KeyError:
-        cls = GenericInstruction
+        cls = default_class
     try:
         return cls(architecture, address, mnemonic, operands)
     except:

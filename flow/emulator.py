@@ -81,8 +81,8 @@ class EndNode(Node):
         return neighbors
 
 
-class FlowInstruction:
-    """Base class for instructions compatible with FunctionFlowEmulator."""
+class FlowInstructionMixIn:
+    """Mixin instructions compatible with FunctionFlowEmulator."""
     def jumps(self):
         """Returns True if jumps. If it does, must define address."""
         return False
@@ -92,7 +92,7 @@ class FlowInstruction:
         raise NotImplementedError
         
     def breaks_function(self):
-        """Returns True if provides an alternate exit for the function (e.g. return). Present only if .jumps() returns True."""
+        """Returns True if provides an alternate exit for the function (e.g. return). Present only if .jumps() returns False."""
         raise NotImplementedError
 
 
