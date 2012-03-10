@@ -37,6 +37,9 @@ class VP1Instruction(instructions.GenericInstruction):
     def is_exit(self):
         raise NotImplementedError
 
+    def is_return(self):
+        raise NotImplementedError
+        
 
 class SimpleInstruction(VP1Instruction):
     def get_branch_target(self):
@@ -45,6 +48,12 @@ class SimpleInstruction(VP1Instruction):
     def is_exit(self):
         return False
         
+    def is_return(self):
+        return False
+        
+    def get_call_target(self):
+        return None
+
 
 class BRAInstruction(VP1Instruction):
     """Both loop and regular"""
@@ -59,6 +68,11 @@ class BRAInstruction(VP1Instruction):
     def is_exit(self):
         return False
         
+    def is_return(self):
+        return False
+        
+    def get_call_target(self):
+        return None        
 
 class EXITInstruction(VP1Instruction):
     def get_branch_target(self):
@@ -67,9 +81,40 @@ class EXITInstruction(VP1Instruction):
     def is_exit(self):
         return True
 
+    def is_return(self):
+        return False
 
+    def get_call_target(self):
+        return None
+
+
+class RETInstruction(VP1Instruction):
+    def get_branch_target(self):
+        return None
+        
+    def is_exit(self):
+        return False
+
+    def is_return(self):
+        return True
+    
+    def get_call_target(self):
+        return None
+
+
+class CALLInstruction(SimpleInstruction):
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        VP1Instruction.__init__(self, arch, address, opcode, mnemonic, operands)
+        self.target = parse_imm(operands[-1])
+
+    def get_call_target(self):
+        return self.target
+        
+        
 instruction_map = {'bra': BRAInstruction,
-                   'exit': EXITInstruction}
+                   'ret': RETInstruction,
+                   'exit': EXITInstruction,
+                   'call': CALLInstruction}
 
 
 def Instruction(address, opcode, mnemonic, operands):

@@ -46,8 +46,14 @@ class Emulator(FunctionFlowEmulator):
 #                print 'leaving', hex(self.instructions[start_index].address), 'from', hex(instruction.address)
                 if not (isinstance(jump_target, int) or isinstance(jump_target, long)):
                     raise EmulationUnsupported("Function can't be traced, contains a dynamic jump at 0x{0:x}.".format(instruction.address))
-                    
+                if machine_jump_reason:
+                    raise InvalidCodeError("Trying to jump but there's already a jump in progress: " + str(instruction))
                 machine_jump_target = jump_target
+                machine_jump_reason = instruction
+                machine_jump_fresh = True
+            elif instruction.is_return():
+                if machine_jump_reason:
+                    raise InvalidCodeError("Trying to jump but there's already a jump in progress: " + str(instruction))                   
                 machine_jump_reason = instruction
                 machine_jump_fresh = True
             elif instruction.is_exit():
@@ -57,9 +63,11 @@ class Emulator(FunctionFlowEmulator):
                 return
             
             # jump is checked _before_ next instruction. It's possible there is no more instructions
-            if machine_jump_target is not None and will_jump():
-                # XXX: check jump reason
-                if True:
+            if machine_jump_reason is not None and will_jump():
+                if machine_jump_reason.is_return():
+                    subflow = self.commit_flow(source, index, current_index)
+                    add_edge(subflow, self._end)
+                elif True:
                     subflow = self.commit_flow(source, index, current_index)
                     self.find_subflow(subflow, current_index + 1)
     #                    print 'again from', hex(instruction.address)
