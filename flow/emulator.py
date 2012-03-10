@@ -99,8 +99,6 @@ class FlowInstructionMixIn:
 class FunctionFlowEmulator:
     """Finds flow graph by emulating instructions. Base class for architectures without branch delays and other fancy stuff.
     On instantiation, resulting flow tree is found in instance.flow
-    
-    Depends on instructions with the interface of FlowInstruction.
     """
     """Notes:
     For future reference: ditching all results on a jump into parsed code should be acceptable.
@@ -132,7 +130,7 @@ class FunctionFlowEmulator:
                 return i
         raise FunctionBoundsException("Address 0x{0:x} out of this code block.".format(address))
 
-    def find_containing_subflow(self, index):
+    def find_existing_subflow(self, index):
         """BFS over the whole graph to find the subflow node containing instruction indexed with index."""
         nodes = [self.flow]
         traversed_nodes = set()
@@ -152,23 +150,25 @@ class FunctionFlowEmulator:
     def find(self, start_index):
         self.find_subflow(self.flow, start_index)
 
+    def commit_flow(self, source_node, start_index, end_index):
+        """Adds executed instructions to the graph."""
+        instructions = Instructions(self.instructions[start_index:end_index + 1], start_index, end_index + 1)
+        subflow = Subflow(instructions)
+        add_edge(source_node, subflow)
+        return subflow
+
     def find_subflow(self, source, start_index):
 #        print 'subflow after', source, 'starting', hex(self.instructions[start_index].address)
-        def commit_flow(end_index):
-            instructions = Instructions(self.instructions[start_index:end_index + 1], start_index, end_index + 1)
-            subflow = Subflow(instructions)
-            add_edge(source, subflow)
-            return subflow
-
-        subflow = self.find_containing_subflow(start_index)
-        if subflow:
+        subflow = self.find_existing_subflow(start_index)
+        if subflow is None:
+            self.follow_subflow(source, start_index)
+        else:
+            # joins back with already traversed branch
 #            print 'this comes back into', subflow
 
+            # if joins into the beginning od a branch, only add edge
+            # if joins into the middle of a branch, perform some splitting
             if start_index != subflow.instructions.start_index:
-        #        print 'sf', source.following
-       #         print 'fp', subflow.preceding
-      #          print 'ff', subflow.following
-            
                 presubflow = subflow.copy_before_index(start_index)
                 for preceding in subflow.preceding:
                     preceding.following.remove(subflow)
@@ -183,7 +183,17 @@ class FunctionFlowEmulator:
  #               print 'fp', subflow.preceding
 #                print 'ff', subflow.following
             add_edge(source, subflow)
-            return
+      
+    def follow_subflow(self, source_node, index):
+        """Actual emulation: follows instruction stream starting with index. Should call commit_flow to save results and recursively find_subflow for each discontinuity.
+        """
+        raise NotImplementedError
+
+
+class SimpleEmulator(FunctionFlowEmulator):
+    """A simple class for flow detection. Compatible with ISAs with no branch delays, no predicates etc.
+    Depends on instructions with the interface of FlowInstructionMixIn."""
+    def follow_subflow(self, source, index):
    #     print 'node starts fresh'
         current_index = start_index
         
