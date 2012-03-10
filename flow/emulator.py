@@ -176,8 +176,8 @@ class FunctionFlowEmulator:
             newest_instructions.append(instruction)
             if instruction.jumps():
 #                print 'leaving', hex(self.instructions[start_index].address), 'from', hex(instruction.address)
-                if not isinstance(instruction.target, int):
-                    raise EmulationUnsupported("Function can't be traced, contains a dynamic jump.")
+                if not (isinstance(instruction.target, int) or isinstance(instruction.target, long)):
+                    raise EmulationUnsupported("Function can't be traced, contains a dynamic jump at 0x{0:x}.".format(instruction.address))
                 if instruction.is_conditional():
                     subflow = commit_flow(current_index)
                     self.find_subflow(subflow, current_index + 1)
