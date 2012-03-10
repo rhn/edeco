@@ -195,37 +195,34 @@ class SimpleEmulator(FunctionFlowEmulator):
     Depends on instructions with the interface of FlowInstructionMixIn."""
     def follow_subflow(self, source, index):
    #     print 'node starts fresh'
-        current_index = start_index
-        
-        newest_instructions = []
+        current_index = index
 
         # for instruction in self.instructions indexed by current_index:
         for instruction in self.instructions[current_index:]:
-            newest_instructions.append(instruction)
             if instruction.jumps():
 #                print 'leaving', hex(self.instructions[start_index].address), 'from', hex(instruction.address)
                 if not (isinstance(instruction.target, int) or isinstance(instruction.target, long)):
                     raise EmulationUnsupported("Function can't be traced, contains a dynamic jump at 0x{0:x}.".format(instruction.address))
                 if instruction.is_conditional():
-                    subflow = commit_flow(current_index)
+                    subflow = self.commit_flow(source, index, current_index)
                     self.find_subflow(subflow, current_index + 1)
 #                    print 'again from', hex(instruction.address)
                     self.find_subflow(subflow, self.get_index(instruction.target))
                     return
                 else:
-                    subflow = commit_flow(current_index)
+                    subflow = self.commit_flow(source, index, current_index)
                     self.find_subflow(subflow, self.get_index(instruction.target))
                     return
             elif instruction.breaks_function():
-                subflow = commit_flow(current_index)
+                subflow = self.commit_flow(source, index, current_index)
                 add_edge(subflow, self._end)
 #                print subflow, 'is *FINISH*ed'
                 return
             
-            post_subflow = self.find_containing_subflow(current_index + 1)
+            post_subflow = self.find_existing_subflow(current_index + 1)
             if post_subflow:
 #                print '*CRASH*es with', post_subflow
-                subflow = commit_flow(current_index)
+                subflow = self.commit_flow(source, index, current_index)
                 add_edge(subflow, post_subflow)
                 return
     #        print 'crashes not'

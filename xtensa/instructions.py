@@ -51,8 +51,8 @@ class SimpleInstruction(XtensaInstruction):
 
 
 class BranchInstruction(XtensaInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        XtensaInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        XtensaInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         if mnemonic.endswith('z') or mnemonic.endswith('z.n'):
             target = operands[1]
         else:
@@ -72,8 +72,8 @@ class BranchInstruction(XtensaInstruction):
 
 
 class JumpInstruction(XtensaInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        XtensaInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        XtensaInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.target = parse_imm(operands[0])
 
     def jumps(self):
@@ -87,8 +87,8 @@ class JumpInstruction(XtensaInstruction):
 
 
 class JumpDynamicInstruction(XtensaInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        XtensaInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        XtensaInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.target = parse_reg(operands[0])
 
     def jumps(self):
@@ -114,8 +114,8 @@ class RetInstruction(XtensaInstruction):
 
 class CallInstruction(XtensaInstruction):
     """Doesn't support the 0x8 thing (first operand)"""
-    def __init__(self, arch, address, mnemonic, operands):
-        XtensaInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        XtensaInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.function = parse_imm(operands[1])
         
     def jumps(self):
@@ -129,8 +129,8 @@ class CallInstruction(XtensaInstruction):
 
 
 class StoreInstruction(SimpleInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        SimpleInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.source = parse_reg(operands[0])
         self.base, self.offset = parse_memory_address(operands[1])
         self.size = 4
@@ -144,8 +144,8 @@ class StoreInstruction(SimpleInstruction):
 
 
 class MoveImmediateInstruction(SimpleInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        SimpleInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.value = parse_imm(operands[1])
         self.destination = parse_reg(operands[0])
     
@@ -154,8 +154,8 @@ class MoveImmediateInstruction(SimpleInstruction):
 
 
 class LoadConstantInstruction(SimpleInstruction):
-    def __init__(self, arch, address, mnemonic, operands):
-        SimpleInstruction.__init__(self, arch, address, mnemonic, operands)
+    def __init__(self, arch, address, opcode, mnemonic, operands):
+        SimpleInstruction.__init__(self, arch, address, opcode, mnemonic, operands)
         self.value = parse_imm(operands[2])
         self.destination = parse_reg(operands[0])
     
@@ -211,5 +211,5 @@ instruction_map = {'retw': RetInstruction,
                    'l32r': LoadConstantInstruction}
 
 
-def Instruction(address, mnemonic, operands):
-    return instructions.Instruction(machine.Architecture, address, mnemonic, operands, instruction_map, SimpleInstruction)
+def Instruction(address, opcode, mnemonic, operands):
+    return instructions.Instruction(machine.Architecture, address, opcode, mnemonic, operands, instruction_map, SimpleInstruction)

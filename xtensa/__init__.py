@@ -7,7 +7,7 @@ import flow.emulator
 
 def detect_flow(instructions, start_address):
     """Creates a flat flow graph."""
-    flow_emulator = flow.emulator.FunctionFlowEmulator(instructions, start_address)
+    flow_emulator = flow.emulator.SimpleEmulator(instructions, start_address)
     return flow_emulator.flow
 
 
