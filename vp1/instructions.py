@@ -18,7 +18,7 @@ def get_exec_unit(opcode):
                                  (0x80, flow.VECTOR_UNIT),
                                  (0xc0, flow.SCALAR_UNIT),
                                  (0xe0, flow.BRANCH_UNIT)]):
-        if oc > start:
+        if oc >= start:
             return unit
     raise Exception("Execution unit table is messed up.")
 
@@ -34,6 +34,9 @@ class VP1Instruction(instructions.GenericInstruction):
     def get_branch_target(self):
         raise NotImplementedError
     
+    def get_branch_condition(self):
+        raise NotImplementedError
+    
     def is_exit(self):
         raise NotImplementedError
 
@@ -43,6 +46,9 @@ class VP1Instruction(instructions.GenericInstruction):
 
 class SimpleInstruction(VP1Instruction):
     def get_branch_target(self):
+        return None
+
+    def get_branch_condition(self):
         return None
 
     def is_exit(self):
@@ -59,11 +65,22 @@ class BRAInstruction(VP1Instruction):
     """Both loop and regular"""
     def __init__(self, arch, address, opcode, mnemonic, operands):
         VP1Instruction.__init__(self, arch, address, opcode, mnemonic, operands)
-        self.condition = operands[1:-1]
+        self.condition = operands[0:-1]
         self.target = parse_imm(operands[-1])
     
     def get_branch_target(self):
+        """A small inconsistency: this function returns None if branch is always ignored. That's because the function is used to determine instruction outcome.
+        """
+        if tuple(self.condition) in [('not', 'true'), ('false', )]:
+            return None
         return self.target
+    
+    def get_branch_condition(self):
+        if tuple(self.condition) in [('not', 'true'), ('false', )]:
+            return None # surprise! careful when changing this
+        elif tuple(self.condition) in [('not', 'false'), ('true', ), ()]:
+            return None
+        return self.condition
     
     def is_exit(self):
         return False
@@ -74,8 +91,12 @@ class BRAInstruction(VP1Instruction):
     def get_call_target(self):
         return None        
 
+
 class EXITInstruction(VP1Instruction):
     def get_branch_target(self):
+        return None
+        
+    def get_branch_condition(self):
         return None
         
     def is_exit(self):
@@ -90,6 +111,9 @@ class EXITInstruction(VP1Instruction):
 
 class RETInstruction(VP1Instruction):
     def get_branch_target(self):
+        return None
+        
+    def get_branch_condition(self):
         return None
         
     def is_exit(self):

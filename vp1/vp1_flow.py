@@ -16,6 +16,8 @@ class Emulator(FunctionFlowEmulator):
         return self.instructions[bundle_index * 4:(bundle_index + 1) * 4]
 
     def follow_subflow(self, source, index):
+#        print 'next from', hex(self.instructions[index].address) + ':' + str(index % 4)
+#        raw_input()
         def will_jump():
             if machine_jump_fresh: # check first obligatory delay slot
                 return False
@@ -26,9 +28,9 @@ class Emulator(FunctionFlowEmulator):
             if in_bundle_index == 0: # check inter-bundle boundary
                 return True
                 
-            next_bundle = self.get_bundle(next_index)
+            next_insn_bundle = self.get_bundle(next_index)
             exec_unit = self.instructions[next_index].exec_unit
-            for instruction in next_bundle[:in_bundle_index]: # check if execution unit was already used
+            for instruction in next_insn_bundle[:in_bundle_index]: # check if execution unit was already used
                 if instruction.exec_unit == exec_unit:
                     return True
             return False
@@ -43,7 +45,7 @@ class Emulator(FunctionFlowEmulator):
             machine_jump_fresh = False
             jump_target = instruction.get_branch_target()
             if jump_target is not None:
-#                print 'leaving', hex(self.instructions[start_index].address), 'from', hex(instruction.address)
+     #           print 'jump from', hex(instruction.address) + ':' + str(current_index % 4)
                 if not (isinstance(jump_target, int) or isinstance(jump_target, long)):
                     raise EmulationUnsupported("Function can't be traced, contains a dynamic jump at 0x{0:x}.".format(instruction.address))
                 if machine_jump_reason:
@@ -64,17 +66,21 @@ class Emulator(FunctionFlowEmulator):
             
             # jump is checked _before_ next instruction. It's possible there is no more instructions
             if machine_jump_reason is not None and will_jump():
+    #            print 'leaving after', hex(instruction.address) + ':' + str(current_index % 4)
+   #             print  machine_jump_reason,  machine_jump_reason.get_branch_condition()
                 if machine_jump_reason.is_return():
                     subflow = self.commit_flow(source, index, current_index)
                     add_edge(subflow, self._end)
-                elif True:
+                elif machine_jump_reason.get_branch_condition() is None:
+  #                  print 'single'
                     subflow = self.commit_flow(source, index, current_index)
-                    self.find_subflow(subflow, current_index + 1)
-    #                    print 'again from', hex(instruction.address)
                     self.find_subflow(subflow, self.get_index(machine_jump_target))
                 else:
+ #                   print 'multi'
                     subflow = self.commit_flow(source, index, current_index)
-                    self.find_subflow(subflow, self.get_index(instruction.target))
+                    self.find_subflow(subflow, current_index + 1)
+#                    print 'again after', hex(instruction.address) + ':' + str(current_index % 4)
+                    self.find_subflow(subflow, self.get_index(machine_jump_target))
                 return
 
             post_subflow = self.find_existing_subflow(current_index + 1)

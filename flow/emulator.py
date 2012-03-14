@@ -1,6 +1,10 @@
 from exceptions import *
 
 def add_edge(from_, to):
+    '''    if to in from_.following:
+        raise Exception('Edge already exists from {0}: {1}'.format(from_, to))
+    if from_ in to.preceding:
+        raise Exception('Edge already exists to {0}: {1}'.format(to, from_))'''
     from_.following.append(to)
     to.preceding.append(from_)
 
