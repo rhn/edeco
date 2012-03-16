@@ -66,7 +66,7 @@ class BRAInstruction(FucInstruction):
         return True
 
     def is_conditional(self):
-        return not self.condition
+        return self.condition
         
     def breaks_function(self):
         return False
