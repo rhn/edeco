@@ -66,8 +66,15 @@ class ConnectedMess(Closure):
     """A closure with many small closures in it, contains connection information."""
     def __init__(self, bulge):
         Closure.__init__(self, None)
+        if len(bulge.outside_branches) > 1:
+            raise Exception("BUG: Trying to create Mess with more than 1 exit")
+        if len(bulge.outside_branches) == 0:
+            raise Exception("Unsupported: Trying to create a dead end.")
         self.closures = bulge.closures[:]
         self.connections = bulge.connections.closures[:]
+        for source, branch in bulge.connections.trees:
+            self.connections.append((source, None))
+        
     
     def get_followers(self, closure):
         followers = []

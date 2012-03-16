@@ -46,6 +46,8 @@ class ConnectedMessDisplay(LooseMessDisplay):
     """Controls all kind of display."""
     # TODO: there should probably be a mapping closure->displaying owner, in case the owner decides to mangle/simplify structure
     def get_display(self, closure):
+        if closure is None:
+            return None
         for closuredisplay in self.insides:
             if closure == closuredisplay.closure:
                 return closuredisplay
@@ -69,6 +71,8 @@ class ConnectedMessDisplay(LooseMessDisplay):
         new_order = []
         
         def follow_deeper(display):
+            if display is None:
+                return
             if display in new_order:
                 return
             new_order.append(display)
@@ -81,11 +85,11 @@ class ConnectedMessDisplay(LooseMessDisplay):
         self.insides = new_order
     
     def __str__(self):
-        def get_short_name(closure):
+        def get_short_name(closure, end=False):
             if closure is None:
-                return 'Start'
+                return 'End' if end else 'Start'
             return self.get_short_name(self.get_display(closure))
-            
+
         self.sort_depth_first()
         inside = []
 
@@ -97,14 +101,19 @@ class ConnectedMessDisplay(LooseMessDisplay):
                 if next == closure:
                     preceding.append(previous)
 
-            preceding_string = indent('\n'.join(map(get_short_name, preceding)), '// From: ') + '\n'
+            preceding_string = indent('\n'.join(map(get_short_name,
+                                                    preceding)),
+                                      '// From: ') + '\n'
 
             following = []
             for previous, next in self.closure.connections:
                 if previous == closure:
                     following.append(next)
             if following:
-                following_string = '\n' + indent('\n'.join(map(get_short_name, following)), '// To: ')
+                following_string = '\n' + indent('\n'.join(map(lambda x: 
+                                                                    get_short_name(x, True),
+                                                               following)),
+                                                 '// To: ')
             else:
                 following_string = '\n// END'
             
