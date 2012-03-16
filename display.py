@@ -53,7 +53,9 @@ class ConnectedMessDisplay(LooseMessDisplay):
                 return closuredisplay
         raise ValueError("Closure " + str(closure) + ' not found in subdisplays')
                 
-    def get_short_name(self, display):
+    def get_short_name(self, display, end=False):
+        if display is None:
+            return 'End' if end else 'Start'
         return '#' + str(self.insides.index(display))
     
     def get_starting_subdisplays(self):
@@ -87,9 +89,14 @@ class ConnectedMessDisplay(LooseMessDisplay):
     def __str__(self):
         def get_short_name(closure, end=False):
             if closure is None:
-                return 'End' if end else 'Start'
-            return self.get_short_name(self.get_display(closure))
+                display = None
+            else:
+                display = self.get_display(closure)
+            return self.get_short_name(display, end)
 
+        def get_short_dest_name(closure):
+           return get_short_name(closure, True)
+           
         self.sort_depth_first()
         inside = []
 
@@ -110,8 +117,7 @@ class ConnectedMessDisplay(LooseMessDisplay):
                 if previous == closure:
                     following.append(next)
             if following:
-                following_string = '\n' + indent('\n'.join(map(lambda x: 
-                                                                    get_short_name(x, True),
+                following_string = '\n' + indent('\n'.join(map(get_short_dest_name,
                                                                following)),
                                                  '// To: ')
             else:

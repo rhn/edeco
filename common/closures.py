@@ -84,4 +84,4 @@ class ConnectedMess(Closure):
         return followers
     
     def __str__(self):
-        return '{' + len(self.connections) + 'x | ' + ', '.join(map(str, self.closures)) + '}'
+        return '{' + str(len(self.connections)) + 'x | ' + ', '.join(map(str, self.closures)) + '}'
