@@ -125,7 +125,7 @@ def compress_join(tree, limit):
             if limit in get_joins(branch):
                 source_closures = tree.connections.get_branch_sources(branch)
                 bulge, join_target = compress_join(branch, limit)
-                tree.outside_branches.remove(branch)
+                tree._remove_branch(branch)
                 tree.assimilate_bulge(source_closures, bulge)
                 # tree.replace_outside_branch(branch, bulge.startnodes)
                 return tree, join_target
@@ -144,7 +144,6 @@ def compress_join(tree, limit):
     if isinstance(tree, Continuation):
         bulge, join_target = compress_join(tree.continuation, limit)
         bulge._insert_start(tree.wrapper, outside_joins)
-#        print 'COMPRESSED', limit, bulge
         return bulge, join_target
 
     raise Exception(str(tree.__class__) + " unsupported")
@@ -384,7 +383,6 @@ class Bulge(Node):
         """Reaches out to collision point and swallows both subtrees leading to it"""
         colliding_closure = self.swallow_collision(collision)
         self.swallow_join(collision, colliding_closure)
-#        print 'RESULT', self
     
     def assimilate_bulge(self, join_closures, other):
         """Swallows bulge other, internally connecting it to join_closures"""
