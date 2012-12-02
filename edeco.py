@@ -18,21 +18,6 @@ def find_functions(arch, instructions, function_addrs):
     return functions
 
 
-def parse_instructions(parser, arch, lines):
-    # TODO: move to parsers
-    # filter out instructions and parse them
-    instructions = []
-    for line in lines:
-        line = line.strip()
-        if not line.startswith('//') and not line == '' and not line.startswith('['):
-            try:
-                instructions.append(parser.parse_line(arch, line))
-            except parsers.ParsingError, e:
-                #print e, 'line skipped'
-                pass
-    return instructions
-
-
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(description="Detects control flow in assembly files.")
     arg_parser.add_argument('-m', '--microcode', type=str, choices=['fuc', 'xtensa', 'vp1', 'x86_64'], required=True, help='microcode name')
@@ -42,10 +27,6 @@ if __name__ == '__main__':
     arg_parser.add_argument('deco', type=str, help='output decompiled file')
     arg_parser.add_argument('-f', '--function', action="append", help="Function address: decimal (123) or hex (0x12ab)")
     args = arg_parser.parse_args()
-
-    # input file
-    with open(args.deasm) as deasm:
-        data = deasm.readlines()
 
     if args.microcode == 'fuc':
         import fuc as arch
@@ -57,13 +38,16 @@ if __name__ == '__main__':
         import vp1 as arch
         import parsers.envydis as insn_parser
     elif args.microcode == 'x86_64':
-        import x86_64 as arch
-        import parsers.objdump as insn_parser
+        import arches.x86_64 as arch
+        from parsers import objdump as insn_parser
     else:
         raise ValueError("ISA {0} unsupported".format(args.microcode))
     
+    # input file
+    with open(args.deasm) as deasm:
+        data = deasm.readlines()
 
-    instructions = parse_instructions(insn_parser, arch, data)
+    instructions = insn_parser.parse_instructions(arch, data)
 
     function_mapping = {}
     if args.cmap:
@@ -74,7 +58,12 @@ if __name__ == '__main__':
                     address, name = result
                     function_mapping[address] = name
 
-    # find functions
+    # find functions in 3 steps
+    # step 1: user-provided
+    # step 2: disasm metadata
+    # step 3: instructions themselves
+    # TODO: define rules for overriding
+    # TODO. implement as separate steps
     addrs = function_mapping.keys()
     if args.function:
         for addr in args.function:
