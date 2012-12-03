@@ -2,7 +2,6 @@ class ParsingError(ValueError): pass
 
 
 def parse_instructions(parser, arch, lines):
-    # TODO: move to parsers
     # filter out instructions and parse them
     instructions = []
     for line in lines:
