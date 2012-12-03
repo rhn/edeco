@@ -162,13 +162,13 @@ class FunctionFlowEmulator:
         return subflow
 
     def find_subflow(self, source, start_index):
-        print 'subflow after', source, 'starting', hex(self.instructions[start_index].address)
+       # print 'subflow after', source, 'starting', hex(self.instructions[start_index].address)
         subflow = self.find_existing_subflow(start_index)
         if subflow is None:
             self.follow_subflow(source, start_index)
         else:
             # joins back with already traversed branch
-            print 'this comes back into', subflow
+      #      print 'this comes back into', subflow
 
             # if joins into the beginning od a branch, only add edge
             # if joins into the middle of a branch, perform some splitting
@@ -180,7 +180,7 @@ class FunctionFlowEmulator:
                 subflow.cut_before_index(start_index)
                 add_edge(presubflow, subflow)
                     
-                print 'rips it apart, results:', presubflow, subflow
+     #           print 'rips it apart, results:', presubflow, subflow
     #            print 'sf', source.following
    #             print 'pp', presubflow.preceding
   #              print 'pf', presubflow.following
@@ -198,19 +198,19 @@ class SimpleEmulator(FunctionFlowEmulator):
     """A simple class for flow detection. Compatible with ISAs with no branch delays, no predicates etc.
     Depends on instructions with the interface of FlowInstructionMixIn."""
     def follow_subflow(self, source, index):
-        print 'starting emulation after {0}'.format(source)
+    #    print 'starting emulation after {0}'.format(source)
         current_index = index
 
         # for instruction in self.instructions indexed by current_index:
         for instruction in self.instructions[current_index:]:
             if instruction.jumps():
-                print 'leaving 0x{0:x} from 0x{1:x}'.format(self.instructions[current_index].address, instruction.address)
+   #             print 'leaving 0x{0:x} from 0x{1:x}'.format(self.instructions[current_index].address, instruction.address)
                 if not (isinstance(instruction.target, int) or isinstance(instruction.target, long)):
                     raise EmulationUnsupported("Function can't be traced, contains a dynamic jump at 0x{0:x}.".format(instruction.address))
                 if instruction.is_conditional():
                     subflow = self.commit_flow(source, index, current_index)
                     self.find_subflow(subflow, current_index + 1)
-                    print 'again from', hex(instruction.address)
+  #                  print 'again from', hex(instruction.address)
                     self.find_subflow(subflow, self.get_index(instruction.target))
                     return
                 else:
@@ -220,12 +220,12 @@ class SimpleEmulator(FunctionFlowEmulator):
             elif instruction.breaks_function():
                 subflow = self.commit_flow(source, index, current_index)
                 add_edge(subflow, self._end)
-                print subflow, 'is *FINISH*ed'
+ #               print subflow, 'is *FINISH*ed'
                 return
             
             post_subflow = self.find_existing_subflow(current_index + 1)
             if post_subflow:
-                print '*CRASH*es with', post_subflow
+#                print '*CRASH*es with', post_subflow
                 subflow = self.commit_flow(source, index, current_index)
                 add_edge(subflow, post_subflow)
                 return
