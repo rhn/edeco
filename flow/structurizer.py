@@ -4,43 +4,49 @@ import pydot
 
 """Converts flat control flow graphs into structured (nested) graphs (control flow trees).
 
-Step 1: Sort graph vertexes to maintain the following relationships:
-            * if an edge leads to a previously unvisited node, source ordinal is smaller than destination's
-            * if an edge leads to an already visited node, source ordinal must be larger than destination's ("loops")
-            * beginning node always has the smallest ordinal
-            * end node always has the greatest ordinal
-            
-Step 2: For each node, find the greatest node smaller than self that has all paths in common
-Step 3: Find smallest node lesser than self sharing all paths
+Definitions:
+    Ordering:
+        if node a lies before node b on any path in graph with reverse edges removed, it's "earlier" than b
+        if node a is earlier than b and b is earlier than c, c is "between" a and b
+        
+Algorithm:
+    Mark reverse edges (define ordering).
+    n := head
+    While n:
+        Find the earliest post-dominator p (define post-dominator).
+        Find all nodes M between n and p. (n and p include exceptions)
+        Replace M with a single node N.
+        Descend into M.
+        n := N->following
+Result: chain of M-nodes
+
+Mark reverse edges:
+    R = {}
+    For each stack S in depth-first order:
+        n := top(S)
+        For each edge E = (s, d) from n:
+            If d in S:
+                R = R + {E}
+                Remove E from graph
+    R is the set of reverse edges.
+
 """
 
 
-def cfg_iterator(start_node, join_wait=False):
+def cfg_iterator(start_node):
     """Depth first iterator
-    join_wait: if True, nodes that are joined from other unvisited sources will not be visited. Use for sorting.
     yield value: node, previous
     """
     visited = set()
     yield start_node
     def iterator(node):
-        print 'iter', node, node.following
         visited.add(node)
-        print 'visited now', sorted(visited)
         for next in node.following:
             if next not in visited:
-                if join_wait:
-                    print next.preceding
-                    if all(joiner in visited or joiner is node for joiner in next.preceding): # all nodes joining to next have been visited
-                        yield next
-                        for n in iterator(next):
-                            yield n
-                else:
-                    yield next
-                    for n in iterator(next):
-                        yield n
-    print 'NEW'
+                yield next
+                for n in iterator(next):
+                    yield n
     for n in iterator(start_node):
-        print 'new', n
         yield n
     
 
@@ -75,10 +81,14 @@ class GraphWrapper:
             return ' '.join(out)
             
             
-    def __init__(self, flat_graph):
+    def __init__(self, graph_head):
         """Flat_graph: first node of the graph"""
-        self.flat_graph = flat_graph
-        self.nodes = {}
+        self.graph_head = graph_head
+        self.nodes = None
+        self.reverse_edges = None
+
+    def mark_reverse_edges(self):
+        self.reverse_edges = find_reverse_edges(self.graph_head)
 
     def sort_nodes(self):
         for i, node in enumerate(cfg_iterator(self.flat_graph, join_wait=True)):
@@ -88,21 +98,59 @@ class GraphWrapper:
     def print_dot(self, filename):
         graph = pydot.Dot('sorting')
         nodes_to_dot = {}
-        for i, node in enumerate(cfg_iterator(self.flat_graph)):
+        for i, node in enumerate(cfg_iterator(self.graph_head)):
             dotnode = pydot.Node('{0}'.format(i))
-            dotnode.set_label('{0} {1}'.format(node, self.nodes[node].to_str(self.nodes)))
+            if self.nodes:
+                label = '{0} {1}'.format(node, self.nodes[node].to_str(self.nodes))
+            else:
+                label = '{0}'.format(node)
+            dotnode.set_label(label)
             nodes_to_dot[node] = dotnode
             graph.add_node(dotnode)
         
-        for src, dst in edge_iterator(self.flat_graph):
-            graph.add_edge(pydot.Edge(nodes_to_dot[src], nodes_to_dot[dst]))
+        for src, dst in edge_iterator(self.graph_head):
+            edge = pydot.Edge(nodes_to_dot[src], nodes_to_dot[dst])
+            if self.reverse_edges and (src, dst) in self.reverse_edges:
+                edge.set_color('red')
+            graph.add_edge(edge)
         
         graph.write(filename)
         
+def find_reverse_edges(graph_head):
+    reverse_edges = set()
+    for path in iterpaths(graph_head,
+                          follow_cond=lambda stack, next: (stack[-1], next) not in reverse_edges,
+                          partial=True):
+        top = path[-1]
+        for next in top.following:
+            if next in path:
+                reverse_edges.add((top, next))
+    return reverse_edges
+    
+def iterpaths(graph_head, follow_cond=None, partial=False):
+    if follow_cond is None:
+        follow_cond = lambda x: True
 
-def structurize(flat_graph):
-    graphmaker = GraphWrapper(flat_graph)
-    graphmaker.sort_nodes()
-    graphmaker.print_dot('sorted.dot')
+    def iterator(previous, node):
+        current_path = previous + [node]
+
+        if not node.following:
+            yield current_path
+            return
+        if partial:
+            yield current_path  
+            
+        for next in node.following: 
+            if follow_cond(current_path, next):
+                for n in iterator(current_path, next):
+                    yield n
+
+    for n in iterator([], graph_head):
+        yield n
+    
+def structurize(graph_head):
+    graphmaker = GraphWrapper(graph_head)
+#    graphmaker.layer_nodes()
+    graphmaker.mark_reverse_edges()
+    graphmaker.print_dot('layered.dot')    
     raise NotImplementedError
-    return ClosureFinder(flat_graph).closure
