@@ -45,21 +45,30 @@ Mark reverse edges:
 """
 
 
-def cfg_iterator(start_node):
+def cfg_iterator(start_node, on_reverse=False):
     """Depth first iterator
     yield value: node, previous
     """
     visited = set()
-    yield start_node
+    if not on_reverse:
+        yield start_node
+        
     def iterator(node):
         visited.add(node)
         for next in node.following:
             if next not in visited:
-                yield next
+                if not on_reverse:
+                    yield next
                 for n in iterator(next):
                     yield n
+                if on_reverse:
+                    yield next
+                    
     for n in iterator(start_node):
         yield n
+        
+    if on_reverse:
+        yield start_node
     
 
 def edge_iterator(start_node):
@@ -74,7 +83,50 @@ def edge_iterator(start_node):
                     yield e
             
     return iterator(start_node)
+
     
+def iterpaths(graph_head, follow_func=None, partial=False, on_backwards=False):
+    if follow_func is None:
+        follow_func = lambda stack: stack[-1].following
+
+    def make_yield(path, forward):
+        if on_backwards:
+            return path, forward
+        return path
+
+    def iterator(previous, node):
+        current_path = previous + [node]
+        
+        if partial:
+            yield make_yield(current_path, True)
+        
+        child_present = False
+        for next in follow_func(current_path):
+            for n in iterator(current_path, next):
+                child_present = True
+                yield n
+                
+        if not child_present and not partial:
+            yield make_yield(current_path, True)
+            if on_backwards:
+                yield make_yield(current_path, False)
+            return
+
+        if on_backwards and partial:
+            yield make_yield(current_path, False)
+
+    for n in iterator([], graph_head):
+        yield n
+
+
+def ordered_next(node, reverse_edges):
+    for following in node.following:
+        if (node, following) not in reverse_edges:
+            yield following
+    for preceding in node.preceding:
+        if (preceding, node) in reverse_edges:
+            yield preceding
+
     
 class GraphWrapper:
     class NodeMeta:
@@ -94,9 +146,8 @@ class GraphWrapper:
             
             
     def __init__(self, graph_head):
-        """Flat_graph: first node of the graph"""
-        self.graph_head = graph_head
-        self.nodes = None
+        self.cfg_head = graph_head
+        self.graph_head = self.wrap_graph(self.cfg_head)
         self.reverse_edges = None
         self.dominance = None
 
@@ -111,8 +162,29 @@ class GraphWrapper:
         current = self.graph_head
         while True:
             dom = find_post_dominator(current, self.reverse_edges)
-            print('dom of', current, dom)
-            self.subs.append(self.wrap_sub(current, dom))
+            subgraph = self.wrap_sub(current, dom)
+            
+            def rewire(node, sub):
+                for following in node.following[:]:
+                    if following in sub.closures:
+                        node.following.remove(following)
+                        node.following.append(sub)
+                for preceding in node.preceding[:]:
+                    if preceding in sub.closures:
+                        node.preceding.remove(preceding)
+                        node.preceding.append(sub)
+                        
+            # rewire
+            if current not in subgraph.closures:
+                rewire(current, subgraph)
+            else:
+                # TODO
+                pass
+            
+            if dom not in subgraph.closures:
+                rewire(dom, subgraph)
+                    
+            self.subs.append(subgraph)
             
             if not list(self.ordered_next(dom)):
                 break
@@ -124,17 +196,29 @@ class GraphWrapper:
         return ordered_next(node, self.reverse_edges)
     
     def wrap_sub(self, start, end):
-        return (start, end)
+        return make_mess(start, end, self.reverse_edges)
+    
+    def wrap_graph(self, graph_head):
+        node_to_closure = {}
+        for node in cfg_iterator(graph_head):
+            closure = NodeClosure(node)
+            node_to_closure[node] = closure
+            
+        for node in cfg_iterator(graph_head):
+            closure = node_to_closure[node]
+            for preceding in node.preceding:
+                closure.preceding.append(node_to_closure[preceding])
+            for following in node.following:
+                closure.following.append(node_to_closure[following])
+
+        return node_to_closure[graph_head]
     
     def print_dot(self, filename):
         graph = pydot.Dot('sorting')
         nodes_to_dot = {}
         for i, node in enumerate(cfg_iterator(self.graph_head)):
             dotnode = pydot.Node('{0}'.format(i))
-            if self.nodes:
-                label = '{0} {1}'.format(node, self.nodes[node].to_str(self.nodes))
-            else:
-                label = '{0}'.format(node)
+            label = '{0}'.format(node)
             if self.dominance is not None:
                 label = label + ' {0}'.format(self.dominance[node])
             dotnode.set_label(label)
@@ -160,9 +244,9 @@ def find_reverse_edges(graph_head):
                 yield next
     
     for path, forward in iterpaths(graph_head,
-                          follow_func=follow_func,
-                          partial=True,
-                          on_backwards=True):
+                                   follow_func=follow_func,
+                                   partial=True,
+                                   on_backwards=True):
                           
         top = path[-1]
         if forward:
@@ -187,7 +271,7 @@ def find_post_dominator(node, reverse_edges):
         return ordered_next(stack[-1], reverse_edges)
         
     dom_candidates = None
-    for path in iterpaths(node, follow_func = follow_func):
+    for path in iterpaths(node, follow_func=follow_func):
         if dom_candidates is None:
             dom_candidates = set(path[1:]) # remove self
         else:
@@ -203,46 +287,36 @@ def find_post_dominator(node, reverse_edges):
     if post_dominator is None:
         raise ValueError("Post-dominator not found")
     return post_dominator
+
+
+def make_mess(start, end, reverse_edges):
+    #TODO: cut start/end connections
+    exclude = set()
+    # determine if starts with split or looplike join
+    # XXX: make sure outer loop layers are peeled if joins from nested loops
+    if not any((preceding, start) in reverse_edges for preceding in start.preceding): # if loop-join
+        exclude.add(start)
     
-
-def iterpaths(graph_head, follow_func=None, partial=False, on_backwards=False):
-    if follow_func is None:
-        follow_func = lambda stack: stack[-1].following
-
-    def make_yield(path, forward):
-        if on_backwards:
-            return path, forward
-        return path
-
-    def iterator(previous, node):
-        current_path = previous + [node]
-
-        if not node.following:
-            yield make_yield(current_path, True)
-            if on_backwards:
-                yield make_yield(current_path, False)
-            return
-        if partial:
-            yield make_yield(current_path, True)
-            
-        for next in follow_func(current_path):
-            for n in iterator(current_path, next):
-                yield n
-
-        if on_backwards and partial:
-            yield make_yield(current_path, False)
-
-    for n in iterator([], graph_head):
-        yield n
-
-def ordered_next(node, reverse_edges):
-    for following in node.following:
-        if (node, following) not in reverse_edges:
-            yield following
-    for preceding in node.preceding:
-        if (preceding, node) in reverse_edges:
-            yield preceding
-
+    # determine if end is a join or a looplike split
+    if not any((end, following) in reverse_edges for following in end.following):
+        exclude.add(end)
+    
+    # find all nodes in between
+    
+    def follow_func(stack):
+        for node in ordered_next(stack[-1], reverse_edges):
+            if node is not end:
+                yield node
+    
+    contents = set()
+    for path in iterpaths(start, follow_func=follow_func):
+        print('p', path)
+        contents.update(set(path))
+    
+    print('cont', contents)
+    print('ex', exclude)
+    contents.difference_update(exclude)
+    return LooseMess(contents)
     
 def structurize(graph_head):
     graphmaker = GraphWrapper(graph_head)

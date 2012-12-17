@@ -31,7 +31,7 @@ class Banana(Closure):
 
 class NodeClosure(Closure):
     """Single node encapsulated into new graph structure"""
-    def __init__(self, node, parent):
+    def __init__(self, node, parent=None):
         Closure.__init__(self, parent)
         self.node = node
 
