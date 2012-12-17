@@ -15,8 +15,9 @@ class Closure:
 
 class Banana(Closure):
     """Linear flow, composed of 0 or more ordered Closures."""
-    def __init__(self):
+    def __init__(self, closures):
         Closure.__init__(self, None)
+        self.closures = closures
         
     def prepend(self, closures):
         self.closures[:0] = closures

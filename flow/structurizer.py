@@ -127,29 +127,67 @@ def ordered_next(node, reverse_edges):
         if (preceding, node) in reverse_edges:
             yield preceding
 
+
+def structurize(mess, reverse_paths):
+    wrapper = MS(mess, reverse_paths)
+    wrapper.mark_largest_dominators()
+    wrapper.wrap_largest_bananas()
+    for banana in wrapper:
+        BS(banana).structurize()
+
+
+class MessStructurizer:
+    def __init__(self, mess_closure, reverse_edges):
+        self.mess_closure = mess_closure
+        self.reverse_edges = reverse_edges
     
-class GraphWrapper:
-    class NodeMeta:
-        def __init__(self, node, order=None):
-            self.node = node
-            self.order = order
-            self.dominator = None
-            self.postdominator = None
+    def wrap_largest_bananas(self):
+        def follow_func(stack):
+            return ordered_next(stack[-1], self.reverse_edges)
+
+#        IDEA:
+ #           find all post-dominators
+
+        for stack in iterpaths(self.mess_closure.virtual_start,
+                               follow_func=follow_func):
+            top = stack[-1]
+            if top == self.mess_closure.virtual_start:
+                continue
+  #          find lowest node for which top is dominator
+   #         wrap them together in a bananacandidate
+    #        rewire
+     #       FCUK: update reverse edges after each rewiring
             
-        def to_str(self, node_to_meta):
-            out = ['o{0}'.format(self.order)]
-            if self.dominator:
-                out.append('d{1}'.format(node_to_meta[self.dominator].order))
-            if self.postdominator:
-                out.append('pd{1}'.format(node_to_meta[self.postdominator].order))
-            return ' '.join(out)
-            
-            
+
+
+class GraphWrapper: # necessarily a bananawrapper
     def __init__(self, graph_head):
         self.cfg_head = graph_head
         self.graph_head = self.wrap_graph(self.cfg_head)
         self.reverse_edges = None
-        self.dominance = None
+
+    def structurize(self):
+        self.mark_reverse_edges()
+        self.split()
+        self.pack_banana()
+        for sub in self.subs:
+            structurize(sub)
+    
+    def pack_banana(self):
+        current = self.graph_head
+        closures = []
+        while True:
+            closures.append(current)
+            following_count = len(current.following)
+            if following_count == 1:
+                current = current.following[0]
+            elif following_count > 1:
+                raise ValueError("more than 1 follower in a trivial flow node")
+                
+            if following_count == 0: # end node
+                break
+        
+        self.banana = Banana(closures)
 
     def mark_reverse_edges(self):
         self.reverse_edges = find_reverse_edges(self.graph_head)
@@ -161,33 +199,46 @@ class GraphWrapper:
         self.subs = []
         current = self.graph_head
         while True:
+            # first follow forward trivial chains
+            while True:
+                nexts = list(self.ordered_next(current))
+                nexts_count = len(nexts)
+                if nexts_count == 1:
+                    current = nexts[0]
+                else:
+                    break
+            if nexts_count == 0: # end node
+                break
+            
+            # not end node, and not a trivial chain may proceed
             dom = find_post_dominator(current, self.reverse_edges)
+            if dom is None:
+                raise ValueError("Post-dominator not found for {0}".format(current))
             subgraph = self.wrap_sub(current, dom)
             
-            def rewire(node, sub):
-                for following in node.following[:]:
-                    if following in sub.closures:
-                        node.following.remove(following)
-                        node.following.append(sub)
-                for preceding in node.preceding[:]:
-                    if preceding in sub.closures:
-                        node.preceding.remove(preceding)
-                        node.preceding.append(sub)
-                        
             # rewire
+
+            # Assumption: going only forward in respect to flow (only works inside bananas)
             if current not in subgraph.closures:
-                rewire(current, subgraph)
+                current.following = [subgraph]
+                subgraph.preceding = [current]
             else:
-                # TODO
-                pass
+                for preceding in current.preceding:
+                    preceding.following.remove(current)
+                    preceding.following.append(subgraph)
+                    subgraph.preceding.append(preceding)
             
             if dom not in subgraph.closures:
-                rewire(dom, subgraph)
+                dom.preceding = [subgraph]
+                subgraph.following = [dom]
+            else:
+                for following in dom.following:
+                    following.preceding.remove(dom)
+                    following.preceding.append(dubgraph)
+                    subgraph.following.append(following)
                     
             self.subs.append(subgraph)
-            
-            if not list(self.ordered_next(dom)):
-                break
+            self.print_dot('dropped_{0}.dot'.format(len(self.subs)))
             current = dom
     
     def ordered_next(self, node):
@@ -219,8 +270,6 @@ class GraphWrapper:
         for i, node in enumerate(cfg_iterator(self.graph_head)):
             dotnode = pydot.Node('{0}'.format(i))
             label = '{0}'.format(node)
-            if self.dominance is not None:
-                label = label + ' {0}'.format(self.dominance[node])
             dotnode.set_label(label)
             nodes_to_dot[node] = dotnode
             graph.add_node(dotnode)
@@ -284,8 +333,6 @@ def find_post_dominator(node, reverse_edges):
         if child in dom_candidates:
             post_dominator = child
             break
-    if post_dominator is None:
-        raise ValueError("Post-dominator not found")
     return post_dominator
 
 
@@ -320,10 +367,11 @@ def make_mess(start, end, reverse_edges):
     
 def structurize(graph_head):
     graphmaker = GraphWrapper(graph_head)
-#    graphmaker.layer_nodes()
+    graphmaker.structurize()
     graphmaker.mark_reverse_edges()
     graphmaker.print_dot('reverse.dot')
     graphmaker.split()
     graphmaker.print_dot('split.dot')
     print(graphmaker.subs)
-    raise NotImplementedError
+    graphmaker.pack_banana()
+    return graphmaker.banana
