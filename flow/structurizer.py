@@ -2,12 +2,17 @@ from ftree import *
 from common.closures import *
 import pydot
 
-"""Converts flat control flow graphs into structured (nested) graphs (control flow trees).
+"""Converts flat control flow graphs into structured (nested) graphs (control flow trees). It doesn't work on graphs with infinite loops/stops.
 
 Definitions:
     Ordering:
-        if node a lies before node b on any path in graph with reverse edges removed, it's "earlier" than b
-        if node a is earlier than b and b is earlier than c, c is "between" a and b
+        Imagine taking the graph by start node and collective end node. Pull them in opposite directions until a string forms.
+        Ordering corresponds to distance from start node (not related to edge direction.
+    
+    Reverse edge:
+        Edge that appears to go from end to start node in "stretched" graph.
+    
+    TODO: formalize
         
 Algorithm:
     Mark reverse edges (define ordering).
@@ -93,15 +98,33 @@ class GraphWrapper:
         self.graph_head = graph_head
         self.nodes = None
         self.reverse_edges = None
+        self.dominance = None
 
     def mark_reverse_edges(self):
         self.reverse_edges = find_reverse_edges(self.graph_head)
 
-    def mark_dominance(self):
+    def split(self):
         # XXX: this flow is stupid and sleepy. make it stateless and convert to passing data around
         if self.reverse_edges is None:
             raise RuntimeError("No reverse edges data")
-        self.dominance = find_post_dominators(self.graph_head, self.reverse_edges)
+        self.subs = []
+        current = self.graph_head
+        while True:
+            dom = find_post_dominator(current, self.reverse_edges)
+            print('dom of', current, dom)
+            self.subs.append(self.wrap_sub(current, dom))
+            
+            if not list(self.ordered_next(dom)):
+                break
+            current = dom
+    
+    def ordered_next(self, node):
+        """Returns next nodes in the direction of stretched order.
+        """
+        return ordered_next(node, self.reverse_edges)
+    
+    def wrap_sub(self, start, end):
+        return (start, end)
     
     def print_dot(self, filename):
         graph = pydot.Dot('sorting')
@@ -112,6 +135,8 @@ class GraphWrapper:
                 label = '{0} {1}'.format(node, self.nodes[node].to_str(self.nodes))
             else:
                 label = '{0}'.format(node)
+            if self.dominance is not None:
+                label = label + ' {0}'.format(self.dominance[node])
             dotnode.set_label(label)
             nodes_to_dot[node] = dotnode
             graph.add_node(dotnode)
@@ -124,10 +149,18 @@ class GraphWrapper:
         
         graph.write(filename)
         
+        
 def find_reverse_edges(graph_head):
     reverse_edges = set()
+    
+    def follow_func(stack):
+        top = stack[-1]
+        for next in top.following:
+            if not (top, next) in reverse_edges:
+                yield next
+    
     for path, forward in iterpaths(graph_head,
-                          follow_cond=lambda stack, next: (stack[-1], next) not in reverse_edges,
+                          follow_func=follow_func,
                           partial=True,
                           on_backwards=True):
                           
@@ -149,36 +182,32 @@ def find_reverse_edges(graph_head):
     return reverse_edges
 
 
-def find_post_dominators(graph_head, reverse_edges):
-    dominators = {}
-    for node in cfg_iterator(graph_head):
-        dom_candidates = None
-        for path in iterpaths(node,
-                              follow_ordered=True,
-                              reverse=reverse_edges):
-            if dom_candidates is None:
-                dom_candidates = set(path)
-            else:
-                dom_candidates.intersection_update(frozenset(path))
+def find_post_dominator(node, reverse_edges):
+    def follow_func(stack):
+        return ordered_next(stack[-1], reverse_edges)
         
-        # got dom_candidates. Figure out the earliest one
-        post_dominator = None
-        path = iterpaths(node,
-                         follow_ordered=True,
-                         reverse=reverse_edges).next()
-        for child in path:
-            if child in dom_candidates:
-                post_dominator = child
-        if post_dominator is None:
-            raise ValueError("Post-dominator not found")   
-        dominators[node] = post_dominator
+    dom_candidates = None
+    for path in iterpaths(node, follow_func = follow_func):
+        if dom_candidates is None:
+            dom_candidates = set(path[1:]) # remove self
+        else:
+            dom_candidates.intersection_update(frozenset(path))
     
-    return dominators
-        
+    # got dom_candidates. Figure out the earliest one
+    post_dominator = None
+    path = iterpaths(node, follow_func=follow_func).next()
+    for child in path:
+        if child in dom_candidates:
+            post_dominator = child
+            break
+    if post_dominator is None:
+        raise ValueError("Post-dominator not found")
+    return post_dominator
+    
 
-def iterpaths(graph_head, follow_cond=None, partial=False, on_backwards=False):
-    if follow_cond is None:
-        follow_cond = lambda x: True
+def iterpaths(graph_head, follow_func=None, partial=False, on_backwards=False):
+    if follow_func is None:
+        follow_func = lambda stack: stack[-1].following
 
     def make_yield(path, forward):
         if on_backwards:
@@ -196,20 +225,31 @@ def iterpaths(graph_head, follow_cond=None, partial=False, on_backwards=False):
         if partial:
             yield make_yield(current_path, True)
             
-        for next in node.following: 
-            if follow_cond(current_path, next):
-                for n in iterator(current_path, next):
-                    yield n
+        for next in follow_func(current_path):
+            for n in iterator(current_path, next):
+                yield n
 
         if on_backwards and partial:
             yield make_yield(current_path, False)
 
     for n in iterator([], graph_head):
         yield n
+
+def ordered_next(node, reverse_edges):
+    for following in node.following:
+        if (node, following) not in reverse_edges:
+            yield following
+    for preceding in node.preceding:
+        if (preceding, node) in reverse_edges:
+            yield preceding
+
     
 def structurize(graph_head):
     graphmaker = GraphWrapper(graph_head)
 #    graphmaker.layer_nodes()
     graphmaker.mark_reverse_edges()
-    graphmaker.print_dot('layered.dot')    
+    graphmaker.print_dot('reverse.dot')
+    graphmaker.split()
+    graphmaker.print_dot('split.dot')
+    print(graphmaker.subs)
     raise NotImplementedError
