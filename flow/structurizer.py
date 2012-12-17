@@ -90,11 +90,12 @@ class GraphWrapper:
     def mark_reverse_edges(self):
         self.reverse_edges = find_reverse_edges(self.graph_head)
 
-    def sort_nodes(self):
-        for i, node in enumerate(cfg_iterator(self.flat_graph, join_wait=True)):
-            print i, node
-            self.nodes[node] = self.NodeMeta(node, i)
-            
+    def mark_dominance(self):
+        # XXX: this flow is stupid and sleepy. make it stateless and convert to passing data around
+        if self.reverse_edges is None:
+            raise RuntimeError("No reverse edges data")
+        self.dominance = find_post_dominators(self.graph_head, self.reverse_edges)
+    
     def print_dot(self, filename):
         graph = pydot.Dot('sorting')
         nodes_to_dot = {}
@@ -118,32 +119,83 @@ class GraphWrapper:
         
 def find_reverse_edges(graph_head):
     reverse_edges = set()
-    for path in iterpaths(graph_head,
+    for path, forward in iterpaths(graph_head,
                           follow_cond=lambda stack, next: (stack[-1], next) not in reverse_edges,
-                          partial=True):
+                          partial=True,
+                          on_backwards=True):
+                          
         top = path[-1]
-        for next in top.following:
-            if next in path:
-                reverse_edges.add((top, next))
+        if forward:
+            # when moving into depth, check paths along the way to stop before traversing them
+            for next in top.following:
+                if next in path:
+                    reverse_edges.add((top, next))
+        else:
+            # when coming back after traversing all child nodes, check the kind of an edge
+            # if all following edges are reverse direction, then this one is also.
+            if top.following and \
+               all(((top, next) in reverse_edges) for next in top.following):
+                # top node MUST have a parent, since there must be a split to reverse mode before it
+                # XXX: I really hope that's true
+                top_parent = path[-2]
+                reverse_edges.add((top_parent, top))
     return reverse_edges
+
+
+def find_post_dominators(graph_head, reverse_edges):
+    dominators = {}
+    for node in cfg_iterator(graph_head):
+        dom_candidates = None
+        for path in iterpaths(node,
+                              follow_ordered=True,
+                              reverse=reverse_edges):
+            if dom_candidates is None:
+                dom_candidates = set(path)
+            else:
+                dom_candidates.intersection_update(frozenset(path))
+        
+        # got dom_candidates. Figure out the earliest one
+        post_dominator = None
+        path = iterpaths(node,
+                         follow_ordered=True,
+                         reverse=reverse_edges).next()
+        for child in path:
+            if child in dom_candidates:
+                post_dominator = child
+        if post_dominator is None:
+            raise ValueError("Post-dominator not found")   
+        dominators[node] = post_dominator
     
-def iterpaths(graph_head, follow_cond=None, partial=False):
+    return dominators
+        
+
+def iterpaths(graph_head, follow_cond=None, partial=False, on_backwards=False):
     if follow_cond is None:
         follow_cond = lambda x: True
+
+    def make_yield(path, forward):
+        if on_backwards:
+            return path, forward
+        return path
 
     def iterator(previous, node):
         current_path = previous + [node]
 
         if not node.following:
-            yield current_path
+            yield make_yield(current_path, True)
+            if on_backwards:
+                yield make_yield(current_path, False)
             return
         if partial:
-            yield current_path  
+            yield make_yield(current_path, True)
             
         for next in node.following: 
             if follow_cond(current_path, next):
                 for n in iterator(current_path, next):
                     yield n
+
+        if on_backwards and partial:
+            yield make_yield(current_path, False)
 
     for n in iterator([], graph_head):
         yield n
