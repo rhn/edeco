@@ -23,11 +23,18 @@ Result: chain of M-nodes
 Mark reverse edges:
     R = {}
     For each stack S in depth-first order:
+        (on just visited)
         n := top(S)
-        For each edge E = (s, d) from n:
+        For each edge E = (n, d):
             If d in S:
                 R = R + {E}
-                Remove E from graph
+                Mark E as visited
+        (after all edges (n, d) visited)
+        if exists edge (n, d) for any d:
+            if all edges (n, d) are marked as visited:
+                p := below_top(S)
+                R = R + {(p, n)}
+                mark (p, n) as visited
     R is the set of reverse edges.
 
 """
