@@ -1,6 +1,5 @@
-from ftree import *
 from common.closures import *
-import pydot
+from common.graphs import *
 
 """Converts flat control flow graphs into structured (nested) graphs (control flow trees). It doesn't work on graphs with infinite loops/stops.
 
@@ -12,13 +11,16 @@ Definitions:
     Reverse edge:
         Edge that appears to go from end to start node in "stretched" graph.
     
+    post-dominator of e:
+        node p that is on all ordered paths containing e, and also p is later than e
+    
     TODO: formalize
         
 Algorithm:
-    Mark reverse edges (define ordering).
+    Mark reverse edges
     n := head
     While n:
-        Find the earliest post-dominator p (define post-dominator).
+        Find the earliest post-dominator p
         Find all nodes M between n and p. (n and p include exceptions)
         Replace M with a single node N.
         Descend into M.
@@ -44,81 +46,6 @@ Mark reverse edges:
 
 """
 
-
-def cfg_iterator(start_node, on_reverse=False):
-    """Depth first iterator
-    yield value: node, previous
-    """
-    visited = set()
-    if not on_reverse:
-        yield start_node
-        
-    def iterator(node):
-        visited.add(node)
-        for next in node.following:
-            if next not in visited:
-                if not on_reverse:
-                    yield next
-                for n in iterator(next):
-                    yield n
-                if on_reverse:
-                    yield next
-                    
-    for n in iterator(start_node):
-        yield n
-        
-    if on_reverse:
-        yield start_node
-    
-
-def edge_iterator(start_node):
-    """Depth first iterator"""
-    visited = set()
-    def iterator(node):
-        visited.add(node)
-        for next in node.following:
-            yield node, next
-            if next not in visited:
-                for e in iterator(next):
-                    yield e
-            
-    return iterator(start_node)
-
-    
-def iterpaths(graph_head, follow_func=None, partial=False, on_backwards=False):
-    if follow_func is None:
-        follow_func = lambda stack: stack[-1].following
-
-    def make_yield(path, forward):
-        if on_backwards:
-            return path, forward
-        return path
-
-    def iterator(previous, node):
-        current_path = previous + [node]
-        
-        if partial:
-            yield make_yield(current_path, True)
-        
-        child_present = False
-        for next in follow_func(current_path):
-            for n in iterator(current_path, next):
-                child_present = True
-                yield n
-                
-        if not child_present and not partial:
-            yield make_yield(current_path, True)
-            if on_backwards:
-                yield make_yield(current_path, False)
-            return
-
-        if on_backwards and partial:
-            yield make_yield(current_path, False)
-
-    for n in iterator([], graph_head):
-        yield n
-
-
 def ordered_next(node, reverse_edges):
     for following in node.following:
         if (node, following) not in reverse_edges:
@@ -128,11 +55,19 @@ def ordered_next(node, reverse_edges):
             yield preceding
 
 
-def structurize(mess, reverse_paths):
-    wrapper = MS(mess, reverse_paths)
-    wrapper.mark_largest_dominators()
+def ordered_prev(node, reverse_edges):
+    for following in node.following:
+        if (node, following) in reverse_edges:
+            yield following
+    for preceding in node.preceding:
+        if (preceding, node) not in reverse_edges:
+            yield preceding
+
+
+def structurize_mess(mess, reverse_paths):
+    wrapper = MessStructurizer(mess, reverse_paths)
     wrapper.wrap_largest_bananas()
-    for banana in wrapper:
+    for banana in wrapper.bananas:
         BS(banana).structurize()
 
 
@@ -145,19 +80,40 @@ class MessStructurizer:
         def follow_func(stack):
             return ordered_next(stack[-1], self.reverse_edges)
 
-#        IDEA:
- #           find all post-dominators
+        def follow_rev(stack):
+            return ordered_prev(stack[-1], self.reverse_edges)
 
-        for stack in iterpaths(self.mess_closure.virtual_start,
+        # XXX: exclude self from pre-dominators
+        # XXX: self-loops?
+
+        # find all pre-dominators
+        nodes_to_predoms = {}
+        for node in iternodes(self.mess_closure.begin,
+                              follow_func=follow_func):
+            nodes_to_predoms[node] = find_unordered_dominators(node, follow_func=follow_rev)
+
+        for startnode in iternodes(self.mess_closure.begin,
                                follow_func=follow_func):
-            top = stack[-1]
-            if top == self.mess_closure.virtual_start:
+            if startnode is self.mess_closure.begin:
                 continue
-  #          find lowest node for which top is dominator
+            
+            path = iterpaths(startnode, follow_func=follow_func).next()
+            
+            end = None
+            for endnode in reversed(path):
+                if startnode in nodes_to_predoms[endnode]:
+                    end = endnode
+            
+            if end is None:
+                self.print_dot('noend.dot', marked_edges=[path_to_edges(path)], marked_nodes=[[startnode]])
+                raise Exception("not sure.")
+            # find lowest node for which top is dominator
    #         wrap them together in a bananacandidate
     #        rewire
      #       FCUK: update reverse edges after each rewiring
             
+    def print_dot(self, filename, marked_edges=None, marked_nodes=None):
+        return as_dot(filename, self.mess_closure.begin, marked_nodes=marked_nodes, marked_edges=marked_edges)
 
 
 class GraphWrapper: # necessarily a bananawrapper
@@ -171,7 +127,7 @@ class GraphWrapper: # necessarily a bananawrapper
         self.split()
         self.pack_banana()
         for sub in self.subs:
-            structurize(sub)
+            structurize_mess(sub, self.reverse_edges)
     
     def pack_banana(self):
         current = self.graph_head
@@ -211,7 +167,7 @@ class GraphWrapper: # necessarily a bananawrapper
                 break
             
             # not end node, and not a trivial chain may proceed
-            dom = find_post_dominator(current, self.reverse_edges)
+            dom = find_earliest_post_dominator(current, self.reverse_edges)
             if dom is None:
                 raise ValueError("Post-dominator not found for {0}".format(current))
             subgraph = self.wrap_sub(current, dom)
@@ -265,22 +221,7 @@ class GraphWrapper: # necessarily a bananawrapper
         return node_to_closure[graph_head]
     
     def print_dot(self, filename):
-        graph = pydot.Dot('sorting')
-        nodes_to_dot = {}
-        for i, node in enumerate(cfg_iterator(self.graph_head)):
-            dotnode = pydot.Node('{0}'.format(i))
-            label = '{0}'.format(node)
-            dotnode.set_label(label)
-            nodes_to_dot[node] = dotnode
-            graph.add_node(dotnode)
-        
-        for src, dst in edge_iterator(self.graph_head):
-            edge = pydot.Edge(nodes_to_dot[src], nodes_to_dot[dst])
-            if self.reverse_edges and (src, dst) in self.reverse_edges:
-                edge.set_color('red')
-            graph.add_edge(edge)
-        
-        graph.write(filename)
+        as_dot(filename, self.graph_head, marked_edges=[self.reverse_edges])
         
         
 def find_reverse_edges(graph_head):
@@ -315,38 +256,61 @@ def find_reverse_edges(graph_head):
     return reverse_edges
 
 
-def find_post_dominator(node, reverse_edges):
+def find_earliest_post_dominator(node, reverse_edges):
     def follow_func(stack):
         return ordered_next(stack[-1], reverse_edges)
         
-    dom_candidates = None
-    for path in iterpaths(node, follow_func=follow_func):
-        if dom_candidates is None:
-            dom_candidates = set(path[1:]) # remove self
-        else:
-            dom_candidates.intersection_update(frozenset(path))
-    
-    # got dom_candidates. Figure out the earliest one
-    post_dominator = None
-    path = iterpaths(node, follow_func=follow_func).next()
-    for child in path:
-        if child in dom_candidates:
-            post_dominator = child
-            break
-    return post_dominator
+    doms = find_post_dominators(node, follow_func)
 
+    if doms:
+        return doms[0]
+    else:
+        return None
+
+
+def find_latest_post_dominator(node, follow_func):
+    doms = find_post_dominators(node, follow_func)
+
+    if doms:
+        return doms[-1]
+    else:
+        return None
+
+
+def find_unordered_dominators(node, follow_func):
+    doms = None
+    for path in iterpaths(node, follow_func=follow_func):
+        if doms is None:
+            doms = set(path[1:]) # remove self
+        else:
+            doms.intersection_update(frozenset(path))
+    return doms
+
+
+def find_post_dominators(node, follow_func):
+    doms = find_unordered_dominators(node, follow_func)
+    path = iterpaths(node, follow_func=follow_func).next()
+
+    dom_list = []
+    for child in path:
+        if child in doms:
+            dom_list.append(child)
+    return dom_list
+    
 
 def make_mess(start, end, reverse_edges):
     #TODO: cut start/end connections
-    exclude = set()
     # determine if starts with split or looplike join
     # XXX: make sure outer loop layers are peeled if joins from nested loops
+    
+    start_index = None
     if not any((preceding, start) in reverse_edges for preceding in start.preceding): # if loop-join
-        exclude.add(start)
+        start_index = 1
     
     # determine if end is a join or a looplike split
+    end_index = None
     if not any((end, following) in reverse_edges for following in end.following):
-        exclude.add(end)
+        end_index = -1
     
     # find all nodes in between
     
@@ -356,14 +320,17 @@ def make_mess(start, end, reverse_edges):
                 yield node
     
     contents = set()
+    start_nodes = set()
+    end_nodes = set()
     for path in iterpaths(start, follow_func=follow_func):
-        print('p', path)
+        path = path[start_index:end_index]
+        start_nodes.add(path[0])
+        end_nodes.add(path[-1])
         contents.update(set(path))
-    
-    print('cont', contents)
-    print('ex', exclude)
-    contents.difference_update(exclude)
-    return LooseMess(contents)
+        
+    print('mess contents', contents)
+    return LooseMess(contents, start_nodes)
+
     
 def structurize(graph_head):
     graphmaker = GraphWrapper(graph_head)

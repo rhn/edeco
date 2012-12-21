@@ -48,9 +48,27 @@ class NodeClosure(Closure):
 
 class LooseMess(Closure):
     """A closure with many small closures in it, in no particular order, not internally connected. Debug only"""
-    def __init__(self, closures):
+    def __init__(self, closures, beginnings, endings):
+        """With multiple beginnings, they MUST be flown INTO
+        """
         Closure.__init__(self, None)
         self.closures = closures
+        # TODO: figure out how to describe connection to parent. virtual node of special type would be able to stop propagation
+        
+        # cut the connections from inside to outside and replace them with connections from closure to outside
+        # this will leave the closure itself in a workable state. Connections from outside to closure STILL need to be taken care of. XXX: is this a good separation?
+
+        # create a virtual begin node if necessary
+        if len(beginnings) == 1:
+            self.begin = list(beginnings)[0]
+        else:
+            self.begin = Closure(self)
+            self.begin.following = beginnings
+            for beginning in beginnings:
+                beginning.preceding = [self.begin]
+        
+        # repeat for end nodes
+        mess_following
         
     def __str__(self):
         return '{' + ', '.join(map(str, self.closures)) + '}'
