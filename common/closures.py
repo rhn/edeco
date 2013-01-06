@@ -68,7 +68,13 @@ class LooseMess(Closure):
                 beginning.preceding = [self.begin]
         
         # repeat for end nodes
-        mess_following
+        if len(endings) == 1:
+            self.end = list(endings)[0]
+        else:
+            self.end = Closure(self)
+            self.begin.preceding = endings
+            for ending in endings:
+                ending.following = [self.end]
         
     def __str__(self):
         return '{' + ', '.join(map(str, self.closures)) + '}'

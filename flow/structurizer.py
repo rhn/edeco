@@ -168,31 +168,35 @@ class GraphWrapper: # necessarily a bananawrapper
             
             # not end node, and not a trivial chain may proceed
             dom = find_earliest_post_dominator(current, self.reverse_edges)
+            print('our glorious ominator from {0}: {1}'.format(current, dom))
+            
             if dom is None:
                 raise ValueError("Post-dominator not found for {0}".format(current))
             subgraph = self.wrap_sub(current, dom)
             
+            print(subgraph)
             # rewire
 
             # Assumption: going only forward in respect to flow (only works inside bananas)
-            if current not in subgraph.closures:
-                current.following = [subgraph]
-                subgraph.preceding = [current]
-            else:
+            # take into account situation where neither current nor dom are inside, but they need a link (if-then) (XXX: this is from vague memory)
+            if current is subgraph.begin:
                 for preceding in current.preceding:
                     preceding.following.remove(current)
                     preceding.following.append(subgraph)
                     subgraph.preceding.append(preceding)
-            
-            if dom not in subgraph.closures:
-                dom.preceding = [subgraph]
-                subgraph.following = [dom]
             else:
+                current.following = [subgraph]
+                subgraph.preceding = [current]
+            
+            if dom is subgraph.end:
                 for following in dom.following:
                     following.preceding.remove(dom)
                     following.preceding.append(dubgraph)
                     subgraph.following.append(following)
-                    
+            else:
+                dom.preceding = [subgraph]
+                subgraph.following = [dom]
+            dontprint
             self.subs.append(subgraph)
             self.print_dot('dropped_{0}.dot'.format(len(self.subs)))
             current = dom
@@ -221,7 +225,11 @@ class GraphWrapper: # necessarily a bananawrapper
         return node_to_closure[graph_head]
     
     def print_dot(self, filename):
-        as_dot(filename, self.graph_head, marked_edges=[self.reverse_edges])
+        if self.reverse_edges is None:
+            marked_edges = []
+        else:
+            marked_edges = [self.reverse_edges]
+        as_dot(filename, self.graph_head, marked_edges=marked_edges)
         
         
 def find_reverse_edges(graph_head):
@@ -329,11 +337,13 @@ def make_mess(start, end, reverse_edges):
         contents.update(set(path))
         
     print('mess contents', contents)
-    return LooseMess(contents, start_nodes)
+    return LooseMess(contents, start_nodes, end_nodes)
 
     
 def structurize(graph_head):
+    as_dot('unstructured.dot', graph_head)
     graphmaker = GraphWrapper(graph_head)
+    graphmaker.print_dot('unstructured_wrapped.dot')
     graphmaker.structurize()
     graphmaker.mark_reverse_edges()
     graphmaker.print_dot('reverse.dot')

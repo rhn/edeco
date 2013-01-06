@@ -86,6 +86,7 @@ def iternodes(graph_head, follow_func=None):
     def follow(stack):
         for node in follow_func(stack):
             if node not in visited:
+                visited.add(node) # XXX: is before yield correct?
                 yield node
     
     for stack in iterpaths(graph_head, follow_func=follow, partial=True):
@@ -93,6 +94,7 @@ def iternodes(graph_head, follow_func=None):
 
 
 def as_dot(filename, graph_head, marked_nodes=None, marked_edges=None):
+    print('printing {0}'.format(filename))
     if marked_edges is None:
         marked_edges = []
     if marked_nodes is None:
