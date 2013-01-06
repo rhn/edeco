@@ -229,6 +229,7 @@ class GraphWrapper: # necessarily a bananawrapper
             
             print(subgraph)
             # rewire
+            subgraph.rewire()
 
             # Assumption: going only forward in respect to flow (only works inside bananas)
             # take into account situation where neither current nor dom are inside, but they need a link (if-then) (XXX: this is from vague memory)
@@ -365,14 +366,14 @@ def make_mess(start, end, reverse_edges):
     # XXX: make sure outer loop layers are peeled if joins from nested loops
     
     start_index = None
-    if not any((preceding, start) in reverse_edges for preceding in start.preceding): # if loop-join
+    if not any((preceding, start) in reverse_edges for preceding in start.preceding): # if not loop-join
         start_index = 1
     
     # determine if end is a join or a looplike split
-    end_index = None
-    if not any((end, following) in reverse_edges for following in end.following):
-        end_index = -1
-    
+    start_index = None
+    if not any((end, following) in reverse_edges for following in end.following): # not loop-split
+        start_index = -1    
+        
     # find all nodes in between
     
     def follow_func(stack):
@@ -384,11 +385,17 @@ def make_mess(start, end, reverse_edges):
     start_nodes = set()
     end_nodes = set()
     for path in iterpaths(start, follow_func=follow_func):
-        path = path[start_index:end_index]
-        start_nodes.add(path[0])
-        end_nodes.add(path[-1])
+        path = path[1:-1]
+        if len(path):
+            snode = path[0]
+            enode = path[-1]
+            snode = None
+            enode = None
+            
+        start_nodes.add(snode)
+        end_nodes.add(enode)
         contents.update(set(path))
-        
+    
     print('mess contents', contents)
     return LooseMess(contents, start_nodes, end_nodes)
 
@@ -397,9 +404,9 @@ def structurize(graph_head):
     as_dot('unstructured.dot', graph_head)
     graphmaker = GraphWrapper(graph_head)
     graphmaker.print_dot('unstructured_wrapped.dot')
-    graphmaker.structurize()
     graphmaker.mark_reverse_edges()
     graphmaker.print_dot('reverse.dot')
+    graphmaker.structurize()
     graphmaker.split()
     graphmaker.print_dot('split.dot')
     print(graphmaker.subs)

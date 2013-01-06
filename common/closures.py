@@ -58,6 +58,15 @@ class LooseMess(Closure):
         # cut the connections from inside to outside and replace them with connections from closure to outside
         # this will leave the closure itself in a workable state. Connections from outside to closure STILL need to be taken care of. XXX: is this a good separation?
 
+        self.beginnings = beginnings
+        self.endings = endings
+        self.rewire_insert()
+
+    def rewire_insert(self):
+        beginnings = self.beginnings
+        endings = self.endings
+        
+        # place beginnings
         # create a virtual begin node if necessary
         if len(beginnings) == 1:
             self.begin = list(beginnings)[0]
@@ -67,6 +76,7 @@ class LooseMess(Closure):
             for beginning in beginnings:
                 beginning.preceding = [self.begin]
         
+        # place endings
         # repeat for end nodes
         if len(endings) == 1:
             self.end = list(endings)[0]
