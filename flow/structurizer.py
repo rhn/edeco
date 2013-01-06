@@ -229,7 +229,6 @@ class GraphWrapper: # necessarily a bananawrapper
             
             print(subgraph)
             # rewire
-            subgraph.rewire()
 
             # Assumption: going only forward in respect to flow (only works inside bananas)
             # take into account situation where neither current nor dom are inside, but they need a link (if-then) (XXX: this is from vague memory)
@@ -245,7 +244,7 @@ class GraphWrapper: # necessarily a bananawrapper
             if dom is subgraph.end:
                 for following in dom.following:
                     following.preceding.remove(dom)
-                    following.preceding.append(dubgraph)
+                    following.preceding.append(subgraph)
                     subgraph.following.append(following)
             else:
                 dom.preceding = [subgraph]
@@ -370,22 +369,25 @@ def make_mess(start, end, reverse_edges):
         start_index = 1
     
     # determine if end is a join or a looplike split
-    start_index = None
+    end_index = None
     if not any((end, following) in reverse_edges for following in end.following): # not loop-split
-        start_index = -1    
+        end_index = -1    
         
     # find all nodes in between
     
     def follow_func(stack):
-        for node in ordered_next(stack[-1], reverse_edges):
-            if node is not end:
-                yield node
+        if stack[-1] is end:
+            return ()
+        else:
+            return ordered_next(stack[-1], reverse_edges)
     
     contents = set()
     start_nodes = set()
     end_nodes = set()
     for path in iterpaths(start, follow_func=follow_func):
-        path = path[1:-1]
+        if len(path) < 2:
+            raise Exception("Not sure why. The shortest flow should have separate start and end nodes.")
+        path = path[start_index:end_index]
         if len(path):
             snode = path[0]
             enode = path[-1]
