@@ -60,9 +60,9 @@ class LooseMess(Closure):
 
         self.beginnings = beginnings
         self.endings = endings
-        self.rewire_insert()
+        self.rewire_create()
 
-    def rewire_insert(self):
+    def rewire_create(self):
         beginnings = self.beginnings
         endings = self.endings
         

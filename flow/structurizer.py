@@ -221,32 +221,44 @@ class GraphWrapper: # necessarily a bananawrapper
             
             # not end node, and not a trivial chain may proceed
             dom = find_earliest_post_dominator(current, self.reverse_edges)
-            print('our glorious ominator from {0}: {1}'.format(current, dom))
             
             if dom is None:
                 raise ValueError("Post-dominator not found for {0}".format(current))
             subgraph = self.wrap_sub(current, dom)
             
-            print(subgraph)
             # rewire
 
             # Assumption: going only forward in respect to flow (only works inside bananas)
             # take into account situation where neither current nor dom are inside, but they need a link (if-then) (XXX: this is from vague memory)
+            # FIXME: remember about reverse edges! they need to be connected on the correct side of the mess
             if current is subgraph.begin:
-                for preceding in current.preceding:
-                    preceding.following.remove(current)
-                    preceding.following.append(subgraph)
-                    subgraph.preceding.append(preceding)
+                for preceding in current.preceding[:]:
+                    if (preceding, current) not in self.reverse_edges:
+                        preceding.following.remove(current)
+                        preceding.following.append(subgraph)
+                        subgraph.preceding.append(preceding)
+                        current.preceding.remove(preceding)
+                for following in current.following:
+                    if (current, following) in self.reverse_edges:
+                        raise Exception("A node initiating a subflow should have all its followers going inside the subflow.")
+                        
             else:
+                # XXX
                 current.following = [subgraph]
                 subgraph.preceding = [current]
             
             if dom is subgraph.end:
-                for following in dom.following:
-                    following.preceding.remove(dom)
-                    following.preceding.append(subgraph)
-                    subgraph.following.append(following)
+                for following in dom.following[:]:
+                    if (dom, following) not in self.reverse_edges:
+                        following.preceding.remove(dom)
+                        following.preceding.append(subgraph)
+                        subgraph.following.append(following)
+                        dom.following.remove(following)
+                for preceding in dom.preceding:
+                    if (preceding, dom) in self.reverse_edges:
+                        raise Exception("A node initiating a subflow should only be reachable from inside the subflow.")
             else:
+                # XXX
                 dom.preceding = [subgraph]
                 subgraph.following = [dom]
                 
@@ -260,7 +272,7 @@ class GraphWrapper: # necessarily a bananawrapper
         return ordered_next(node, self.reverse_edges)
     
     def wrap_sub(self, start, end):
-        return make_mess(start, end, self.reverse_edges)
+        return find_mess(start, end, self.reverse_edges)
     
     def wrap_graph(self, graph_head):
         node_to_closure = {}
@@ -359,7 +371,7 @@ def find_post_dominators(node, follow_func):
     return dom_list
     
 
-def make_mess(start, end, reverse_edges):
+def find_mess(start, end, reverse_edges):
     #TODO: cut start/end connections
     # determine if starts with split or looplike join
     # XXX: make sure outer loop layers are peeled if joins from nested loops
@@ -387,10 +399,12 @@ def make_mess(start, end, reverse_edges):
     for path in iterpaths(start, follow_func=follow_func):
         if len(path) < 2:
             raise Exception("Not sure why. The shortest flow should have separate start and end nodes.")
+            
         path = path[start_index:end_index]
         if len(path):
             snode = path[0]
             enode = path[-1]
+        else:
             snode = None
             enode = None
             
@@ -411,6 +425,5 @@ def structurize(graph_head):
     graphmaker.structurize()
     graphmaker.split()
     graphmaker.print_dot('split.dot')
-    print(graphmaker.subs)
     graphmaker.pack_banana()
     return graphmaker.banana
