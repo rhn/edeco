@@ -120,6 +120,7 @@ class GraphWrapper: # necessarily a bananawrapper
     def __init__(self, graph_head):
         self.cfg_head = graph_head
         self.graph_head = self.wrap_graph(self.cfg_head)
+        self.expand_intersections()
         self.reverse_edges = None
 
     def structurize(self):
@@ -144,6 +145,58 @@ class GraphWrapper: # necessarily a bananawrapper
                 break
         
         self.banana = Banana(closures)
+
+    def expand_intersections(self):
+        """Creates ghost nodes before any node with more than 1 preceding and following, in order to allow dominator algorithms to see the links between a node start (joins) and end.
+        """
+        # XXX: should be a filtering stateless call, not a method
+        class GhostClosure(Closure):
+            def __init__(self, original):
+                Closure.__init__(self, None)
+                self.preceding = original.preceding[:]
+                self.following = original.following[:]
+                self.original = original
+            
+            def insert(self):
+                """Inserts ghost before its original"""
+                original = self.original
+                self.following = [original]
+                original.preceding = [self]
+                for preceding in self.preceding:
+                    preceding.following.remove(original)
+                    preceding.following.append(self)
+            
+            def remove(self):
+                """Removes self from before original"""
+                original = self.original
+                original.preceding = self.preceding
+                for preceding in self.preceding:
+                    preceding.following.remove(self)
+                    preceding.following.append(original)
+                # seppuku now
+            
+            def __str__(self):
+                return 'G({0})'.format(self.original)
+             
+            __repr__ = __str__
+        
+        multijoiners = set()
+        for node in iternodes(self.graph_head):
+            if len(node.preceding) > 1 and len(node.following) > 1:
+                multijoiners.add(node)
+        
+        ghosts = set()
+        for multijoiner in multijoiners:
+            ghost = GhostClosure(multijoiner)
+            ghost.insert()
+            ghosts.add(ghost)
+        self.ghosts = ghosts
+
+    def collapse_ghosts(self):
+        """Removes ghost nodes from the flatness of the graph."""
+        for ghost in self.ghosts:
+            ghost.remove()
+        self.ghosts = None
 
     def mark_reverse_edges(self):
         self.reverse_edges = find_reverse_edges(self.graph_head)
@@ -196,7 +249,7 @@ class GraphWrapper: # necessarily a bananawrapper
             else:
                 dom.preceding = [subgraph]
                 subgraph.following = [dom]
-            dontprint
+                
             self.subs.append(subgraph)
             self.print_dot('dropped_{0}.dot'.format(len(self.subs)))
             current = dom
