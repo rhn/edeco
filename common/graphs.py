@@ -127,7 +127,7 @@ def as_dot(filename, graph_head, marked_nodes=None, marked_edges=None):
         src, dst = edge
         dot_edge = pydot.Edge(nodes_to_dot[src], nodes_to_dot[dst])
         if edge in edge_colors:
-            dotnode.set_color(edge_colors[node])
+            dotnode.set_color(edge_colors[edge])
         graph.add_edge(dot_edge)
     
     graph.write(filename)
