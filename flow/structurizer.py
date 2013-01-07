@@ -69,14 +69,18 @@ def structurize_mess(mess, reverse_paths):
     wrapper.wrap_largest_bananas()
     for banana in wrapper.bananas:
         BS(banana).structurize()
+    wrapper.collapse_ghosts()
 
 
 class MessStructurizer:
     def __init__(self, mess_closure, reverse_edges):
         self.mess_closure = mess_closure
         self.reverse_edges = reverse_edges
+        self.bananas = None
     
     def wrap_largest_bananas(self):
+        """Wraps all bananas that can be potentially found, but starts with largest. They won't be structured at first.
+        """
         def follow_func(stack):
             return ordered_next(stack[-1], self.reverse_edges)
 
@@ -85,15 +89,20 @@ class MessStructurizer:
 
         # XXX: exclude self from pre-dominators
         # XXX: self-loops?
+        bananas = []
 
-        # find all pre-dominators
+        # find all pre-dominators and post-dominators
+        # XXX: they should be found according to normal flow direction... or something, to reduce simple >A->B< links
         nodes_to_predoms = {}
+        nodes_to_postdoms = {}
         for node in iternodes(self.mess_closure.begin,
                               follow_func=follow_func):
             nodes_to_predoms[node] = find_unordered_dominators(node, follow_func=follow_rev)
+            nodes_to_postdoms[node] = find_unordered_dominators(node, follow_func=follow_func)
 
         print(self.mess_closure.begin)
         print(nodes_to_predoms)
+        print(nodes_to_postdoms)
 
         for startnode in iternodes(self.mess_closure.begin,
                                follow_func=follow_func):
@@ -102,17 +111,20 @@ class MessStructurizer:
             path = iterpaths(startnode, follow_func=follow_func).next()
             end = None
             for endnode in path:
-                if startnode in nodes_to_predoms[endnode]:
+                if startnode in nodes_to_predoms[endnode] and endnode in nodes_to_postdoms[startnode]:
                     end = endnode
             
             if end is None:
-                self.print_dot('noend.dot', marked_edges=[path_to_edges(path)], marked_nodes=[[startnode]])
-                raise Exception("not sure.")
-            print('Farthest node that is predomed by {0} is {1}, need to wrap'.format(startnode, end))
+                print('{0} is at its final depth already, not wrapping'.format(startnode))
+            else:
+                # self.print_dot('noend.dot', marked_edges=[path_to_edges(path)], marked_nodes=[[startnode]])
+                # raise Exception("not sure.")
+                print('Farthest node that is predomed by {0} is {1}, need to wrap'.format(startnode, end))
             # find lowest node for which top is dominator
    #         wrap them together in a bananacandidate
     #        rewire
      #       FCUK: update reverse edges after each rewiring
+        self.bananas = bananas
             
     def print_dot(self, filename, marked_edges=None, marked_nodes=None):
         return as_dot(filename, self.mess_closure.begin, marked_nodes=marked_nodes, marked_edges=marked_edges)
