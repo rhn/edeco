@@ -82,7 +82,7 @@ def iternodes(graph_head, follow_func=None):
     if follow_func is None:
         follow_func = lambda stack: stack[-1].following
     
-    visited = set()
+    visited = set([graph_head])
     def follow(stack):
         for node in follow_func(stack):
             if node not in visited:

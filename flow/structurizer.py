@@ -92,19 +92,20 @@ class MessStructurizer:
                               follow_func=follow_func):
             nodes_to_predoms[node] = find_unordered_dominators(node, follow_func=follow_rev)
 
+        print(self.mess_closure.begin)
+
         for startnode in iternodes(self.mess_closure.begin,
                                follow_func=follow_func):
-            if startnode is self.mess_closure.begin:
-                continue
-            
+            print(startnode)
             path = iterpaths(startnode, follow_func=follow_func).next()
-            
+            print(path)
             end = None
             for endnode in reversed(path):
                 if startnode in nodes_to_predoms[endnode]:
                     end = endnode
             
             if end is None:
+                for node in iternodes(self.mess_closure.begin):
                 self.print_dot('noend.dot', marked_edges=[path_to_edges(path)], marked_nodes=[[startnode]])
                 raise Exception("not sure.")
             # find lowest node for which top is dominator
