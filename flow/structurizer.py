@@ -69,7 +69,8 @@ def structurize_mess(mess, reverse_paths):
     wrapper.wrap_largest_bananas()
     for banana in wrapper.bananas:
         BS(banana).structurize()
-    wrapper.collapse_ghosts()
+    wrapper.merge_straightlinks()
+    wrapper.print_dot('straightlinked.dot')
 
 
 class MessStructurizer:
@@ -125,6 +126,9 @@ class MessStructurizer:
     #        rewire
      #       FCUK: update reverse edges after each rewiring
         self.bananas = bananas
+        
+    def merge_straightlinks(self):
+        return self.mess_closure.reduce_straightlinks()
             
     def print_dot(self, filename, marked_edges=None, marked_nodes=None):
         return as_dot(filename, self.mess_closure.begin, marked_nodes=marked_nodes, marked_edges=marked_edges)
@@ -164,11 +168,14 @@ class GraphWrapper: # necessarily a bananawrapper
         """Creates ghost nodes before any node with more than 1 preceding and following, in order to allow dominator algorithms to see the links between a node start (joins) and end.
         """
         # XXX: should be a filtering stateless call, not a method
-        class GhostClosure(Closure):
+        class GhostClosure(NodeClosure):
             def __init__(self, original):
                 Closure.__init__(self, None)
                 self.preceding = original.preceding[:]
                 self.following = original.following[:]
+                # XXX: this is so ugly I want to cry
+                import flow.emulator
+                self.node = flow.emulator.Subflow(flow.emulator.Instructions([], original.node.instructions.start_index, original.node.instructions.end_index))
                 self.original = original
             
             def insert(self):

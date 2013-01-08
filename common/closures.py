@@ -1,3 +1,5 @@
+import graphs
+
 def indent(text, prefix='    '):
     return '\n'.join(prefix + se 
                    for se in
@@ -85,7 +87,47 @@ class LooseMess(Closure):
             self.begin.preceding = endings
             for ending in endings:
                 ending.following = [self.end]
-        
+    
+    def reduce_straightlinks(self):
+        """Finds all chains ...A->B... and wraps them into finished bananas."""
+        for node in graphs.iternodes(self.begin):
+            if len(node.following) == 1:
+                next = node.following[0]
+                if len(next.preceding) == 1:
+                    # node is a simple link
+                    if isinstance(node, Banana):
+                        raise Warning('Packing a banana inside a banana. child: {0}. Check for incorrect finding largest bananas.'.format(node))
+                    if isinstance(next, Banana):
+                        raise Warning('Packing a banana inside a banana. child: {0}. Check for incorrect finding largest bananas.'.format(next))
+                    
+                    banana = Banana([node, next])
+                    if node is self.begin:
+                        self.begin = banana
+                    else:
+                        banana.preceding = node.preceding[:]
+                        for preceding in banana.preceding:
+                            preceding.following.remove(node)
+                            preceding.following.append(banana)
+                    if next is self.end:
+                        self.end = banana
+                    else:
+                        banana.following = next.following[:]
+                        for following in banana.following:
+                            following.preceding.remove(next)
+                            following.preceding.append(banana)
+                    
+                    self.closures.remove(node)
+                    self.closures.remove(next)
+                    self.closures.add(banana)
+    
+    def get_following(self, node):
+        return node.following
+    
+    get_followers = get_following
+    
+    def get_preceding(self, node):
+        return node.preceding
+    
     def __str__(self):
         return '{' + ', '.join(map(str, self.closures)) + '}'
     __repr__=__str__    

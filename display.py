@@ -1,4 +1,5 @@
 import common.closures
+from common import graphs
 from flow.emulator import StartNode, EndNode # TODO: get rid of those before passing data to display
 
 def indent(text, prefix='    '):
@@ -103,19 +104,13 @@ class ConnectedMessDisplay(LooseMessDisplay):
         for closuredisplay in self.insides:
             closure = closuredisplay.closure
 
-            preceding = []
-            for previous, next in self.closure.connections:
-                if next == closure:
-                    preceding.append(previous)
+            preceding = self.closure.get_preceding(closure)
 
             preceding_string = indent('\n'.join(map(get_short_name,
                                                     preceding)),
                                       '// From: ') + '\n'
 
-            following = []
-            for previous, next in self.closure.connections:
-                if previous == closure:
-                    following.append(next)
+            following = self.closure.get_following(closure)
             if following:
                 following_string = '\n' + indent('\n'.join(map(get_short_dest_name,
                                                                following)),
@@ -130,7 +125,15 @@ class ConnectedMessDisplay(LooseMessDisplay):
         starts_str = ' '.join(map(self.get_short_name, starts))
         
         return 'UnknownFlow {{\n' + indent('// Start points: ' + starts_str + '\n\n' + '\n\n'.join(inside)) + '\n}}'
-        
+
+
+class NodeBasedMessDisplay(ConnectedMessDisplay):
+    def get_starting_subdisplays(self):
+        return [self.get_display(self.closure.begin)]
+            
+LooseMessDisplay = NodeBasedMessDisplay
+
+
 class BananaDisplay:
     def __init__(self, closure, function_mappings):
         self.closure = closure
