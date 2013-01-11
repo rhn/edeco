@@ -46,13 +46,19 @@ Mark reverse edges:
 
 """
 
-def ordered_next(node, reverse_edges):
+def ordered_next_edge(node, reverse_edges):
     for following in node.following:
         if (node, following) not in reverse_edges:
-            yield following
+            yield (node, following), following
     for preceding in node.preceding:
         if (preceding, node) in reverse_edges:
-            yield preceding
+            yield (preceding, node), preceding
+
+
+def ordered_next_node(node, reverse_edges):
+    return (n for e, n in ordered_next_edge(node, reverse_edges))
+
+ordered_next = ordered_next_node    
 
 
 def ordered_prev(node, reverse_edges):
@@ -85,6 +91,9 @@ class MessStructurizer:
         """
         def follow_func(stack):
             return ordered_next(stack[-1], self.reverse_edges)
+        
+        def follow_edge_func(last):
+            return ordered_next_edges(last, self.reverse_edges)
 
         def follow_rev(stack):
             return ordered_prev(stack[-1], self.reverse_edges)
@@ -98,7 +107,7 @@ class MessStructurizer:
         nodes_to_predoms = {}
         nodes_to_postdoms = {}
         for node in iternodes(self.mess_closure.begin,
-                              follow_func=follow_func):
+                                           follow_func=follow_func):
             nodes_to_predoms[node] = find_unordered_dominators(node, follow_func=follow_rev)
             nodes_to_postdoms[node] = find_unordered_dominators(node, follow_func=follow_func)
 
