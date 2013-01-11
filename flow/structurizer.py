@@ -66,6 +66,7 @@ def ordered_prev(node, reverse_edges):
 
 def structurize_mess(mess, reverse_paths):
     wrapper = MessStructurizer(mess, reverse_paths)
+    wrapper.print_dot('raw_mess.dot')
     wrapper.wrap_largest_bananas()
     for banana in wrapper.bananas:
         BS(banana).structurize()
@@ -282,7 +283,11 @@ class GraphWrapper: # necessarily a bananawrapper
                 # XXX
                 dom.preceding = [subgraph]
                 subgraph.following = [dom]
-                
+            
+            print('sub', subgraph)
+            print('begin', subgraph.begin.preceding, subgraph.begin.following)
+            print('end', subgraph.end.preceding, subgraph.end.following)
+            
             self.subs.append(subgraph)
             self.print_dot('dropped_{0}.dot'.format(len(self.subs)))
             current = dom

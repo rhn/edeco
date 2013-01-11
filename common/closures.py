@@ -91,9 +91,9 @@ class LooseMess(Closure):
     def reduce_straightlinks(self):
         """Finds all chains ...A->B... and wraps them into finished bananas."""
         for node in graphs.iternodes(self.begin):
-            if len(node.following) == 1:
+            if len(node.following) == 1 and not node is self.end:
                 next = node.following[0]
-                if len(next.preceding) == 1:
+                if len(next.preceding) == 1 and not node is self.begin:
                     # node is a simple link
                     if isinstance(node, Banana):
                         raise Warning('Packing a banana inside a banana. child: {0}. Check for incorrect finding largest bananas.'.format(node))
