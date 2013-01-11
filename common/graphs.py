@@ -4,32 +4,6 @@ def path_to_edges(path):
     return [edge for edge in zip(path, path[1:])]
 
 
-def cfg_iterator(start_node, on_reverse=False):
-    """Depth first iterator
-    yield value: node, previous
-    """
-    visited = set()
-    if not on_reverse:
-        yield start_node
-        
-    def iterator(node):
-        visited.add(node)
-        for next in node.following:
-            if next not in visited:
-                if not on_reverse:
-                    yield next
-                for n in iterator(next):
-                    yield n
-                if on_reverse:
-                    yield next
-                    
-    for n in iterator(start_node):
-        yield n
-        
-    if on_reverse:
-        yield start_node
-    
-
 def edge_iterator(start_node):
     """Depth first iterator"""
     visited = set()
@@ -92,6 +66,7 @@ def iternodes(graph_head, follow_func=None):
     for stack in iterpaths(graph_head, follow_func=follow, partial=True):
         yield stack[-1]
 
+cfg_iterator = iternodes
 
 def as_dot(filename, graph_head, marked_nodes=None, marked_edges=None):
     print('printing {0}'.format(filename))
