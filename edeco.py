@@ -38,6 +38,10 @@ if __name__ == '__main__':
         import vp1 as arch
         import parsers.envydis as insn_parser
     elif args.microcode == 'x86_64':
+        if args.cmap:
+            raise Exception("cmap file not supported on x86_64")
+        if not args.no_autodetect:
+            args.cmap = args.deasm
         import arches.x86_64 as arch
         from parsers import objdump as insn_parser
     else:
