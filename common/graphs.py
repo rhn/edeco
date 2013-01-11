@@ -3,20 +3,6 @@ import pydot
 def path_to_edges(path):
     return [edge for edge in zip(path, path[1:])]
 
-
-def edge_iterator(start_node):
-    """Depth first iterator"""
-    visited = set()
-    def iterator(node):
-        visited.add(node)
-        for next in node.following:
-            yield node, next
-            if next not in visited:
-                for e in iterator(next):
-                    yield e
-            
-    return iterator(start_node)
-
     
 def iterpaths(graph_head, follow_func=None, partial=False, on_backwards=False):
     if follow_func is None:
@@ -50,6 +36,27 @@ def iterpaths(graph_head, follow_func=None, partial=False, on_backwards=False):
 
     for n in iterator([], graph_head):
         yield n
+
+
+def iteredges(graph_head, follow_func=None):
+    if follow_func is None:
+        follow_func = lambda last: (((last, next), next) for next in last.following)
+    
+    visited = set()
+    def follow(last):
+        for next_edge, next_node in follow_func(last):
+            if next_edge not in visited:
+                yield next_edge, next_node
+    
+    def iterator(node):
+        for next_edge, next_node in follow(node):
+            visited.add(next_edge)
+            for e, n in iterator(next_node):
+                yield e
+
+    return iterator(graph_head)
+
+edge_iterator = iteredges
 
 
 def iternodes(graph_head, follow_func=None):

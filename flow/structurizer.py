@@ -97,7 +97,7 @@ class MessStructurizer:
         # XXX: they should be found according to normal flow direction... or something, to reduce simple >A->B< links
         nodes_to_predoms = {}
         nodes_to_postdoms = {}
-        for node in iteredges(self.mess_closure.begin,
+        for node in iternodes(self.mess_closure.begin,
                               follow_func=follow_func):
             nodes_to_predoms[node] = find_unordered_dominators(node, follow_func=follow_rev)
             nodes_to_postdoms[node] = find_unordered_dominators(node, follow_func=follow_func)
