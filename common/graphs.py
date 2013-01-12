@@ -51,7 +51,8 @@ def iteredges(graph_head, follow_func=None):
     def iterator(node):
         for next_edge, next_node in follow(node):
             visited.add(next_edge)
-            for e, n in iterator(next_node):
+            yield next_edge
+            for e in iterator(next_node):
                 yield e
 
     return iterator(graph_head)
