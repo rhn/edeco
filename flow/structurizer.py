@@ -93,7 +93,7 @@ class MessStructurizer:
             return ordered_next(stack[-1], self.reverse_edges)
         
         def follow_edge_func(last):
-            return ordered_next_edges(last, self.reverse_edges)
+            return ordered_next_edge(last, self.reverse_edges)
 
         def follow_rev(stack):
             return ordered_prev(stack[-1], self.reverse_edges)
@@ -104,21 +104,67 @@ class MessStructurizer:
 
         # find all pre-dominators and post-dominators
         # XXX: they should be found according to normal flow direction... or something, to reduce simple >A->B< links
-        nodes_to_predoms = {}
-        nodes_to_postdoms = {}
-        for node in iternodes(self.mess_closure.begin,
-                                           follow_func=follow_func):
-            nodes_to_predoms[node] = find_unordered_dominators(node, follow_func=follow_rev)
-            nodes_to_postdoms[node] = find_unordered_dominators(node, follow_func=follow_func)
+        
+        def restricted_follow(first_edge, stack):
+            if len(stack) == 1:
+                # problem (?): accepts only forward links
+                first_start, first_end = first_edge
+                if first_start != stack[0]:
+                    return
+                for node in follow_func(stack):
+                    if node == first_end:
+                        yield node
+            else:
+                for node in follow_func(stack):
+                    yield node
+
+        def restricted_follow_rev(last_edge, stack):
+            if len(stack) == 1:
+                # problem (?): accepts only reverse links
+                last_start, last_end = last_edge
+                if last_end != stack[0]:
+                    return
+                for node in follow_func(stack):
+                    if node == last_start:
+                        yield node
+            else:
+                for node in follow_rev(stack):
+                    yield node                    
+                
+        edges_to_predoms = {}
+        edges_to_postdoms = {}
+        for edge in iteredges(self.mess_closure.begin):
+            edges_to_predoms[edge] = find_unordered_dominators(edge[1], follow_func=functools.partial(restricted_follow_rev, edge))
+            edges_to_postdoms[edge] = find_unordered_dominators(edge[0], follow_func=functools.partial(restricted_follow, edge))
 
         print(self.mess_closure.begin)
         print(nodes_to_predoms)
         print(nodes_to_postdoms)
 
-        for startnode in iternodes(self.mess_closure.begin,
-                               follow_func=follow_func):
-            if startnode is self.mess_closure.begin or startnode is self.mess_closure.end:
-                continue
+        for edge in iteredges(self.mess_closure.begin,
+                                           follow_func=follow_edge_func):
+            source, target = edge
+
+            
+            if len(source.following) != 1:
+                start = target
+            else:
+                start = source
+                
+#            end_edge = stretchwise both-dominator EDGE of edge (incl self)
+            
+            end_source, end_target = end_edge
+            
+            if len(end_target.preceding) != 1:
+                end = end_source
+            else:
+                end = end_target
+            
+            if start != end:
+                wrap(start, end)
+            
+            
+            # ---------OLD
             path = iterpaths(startnode, follow_func=follow_func).next()
             end = None
             for endnode in path:
