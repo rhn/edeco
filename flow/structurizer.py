@@ -131,8 +131,25 @@ class MessStructurizer:
             else:
                 first, last = edge
                 
-            edges_to_predoms[edge] = find_unordered_dominator_edges(last, follow_func=follow_link_iter)
-            edges_to_postdoms[edge] = find_unordered_dominator_edges(first, follow_func=follow_rev_link_iter)
+            edges_to_postdoms[edge] = find_ordered_dominator_edges(last, follow_link_iter)
+            edges_to_predoms[edge] = find_ordered_dominator_edges(first, follow_rev_link_iter)
+            
+        def get_both_dominator(edge):
+            """Returns the farthest edge which dominates edge if it is dominated by edge.
+            """
+            edge_dominators = edges_to_postdoms[edge]
+            # if edge has no post-dominators then it is its own dominator and only node dominated by itself
+            if not edge_dominators:
+                return edge
+            
+            # start searching from the fathest one
+            for postdom in reverse(edge_dominators):
+                # if is dominated by edge, then we ound it
+                if edge in edges_to_predoms[postdom]
+                    return postdom
+            
+            # if no dominator of edge is also dominated by edge, then edge is the only such dominator
+            return edge
 
         print(self.mess_closure.begin)
         print(edges_to_predoms)
@@ -149,7 +166,7 @@ class MessStructurizer:
                 else:
                     start = source
                     
-    #            end_edge = stretchwise both-dominator EDGE of edge (incl self)
+                end_edge = get_both_dominator(edge)
                 
                 end_source, end_target = end_edge
                 
@@ -181,6 +198,7 @@ class MessStructurizer:
                     wrap(start, end)            
             
             # ---------OLD
+            old
             path = iterpaths(startnode, follow_func=follow_func).next()
             end = None
             for endnode in path:
@@ -457,13 +475,14 @@ def find_unordered_dominators(node, follow_func):
     return doms
 
 
-def find_unordered_dominator_edges(node, follow_func):
+def find_unordered_dominator_edges(node, follow_iter):
     doms = None
-    for path in iteredgepaths(node, follow_iter=follow_func):
+    for path in iteredgepaths(node, follow_iter=follow_iter):
+        edges = path.get_edges()
         if doms is None:
-            doms = set(path.get_edges())
+            doms = set(edges)
         else:
-            doms.intersection_update(path.get_edges())
+            doms.intersection_update(edges)
     return doms
 
 
