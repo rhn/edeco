@@ -11,10 +11,10 @@ def find_functions(arch, instructions, function_addrs):
     functions = []
     for address in sorted(function_addrs):
         try:
-            print 'finding function at', hex(address)
+            print('finding function at 0x{0:x}'.format(address))
             functions.append(detect_function(arch, instructions, address))
-        except FlowDetectionError, e:
-            print e
+        except FlowDetectionError as e:
+            print(e)
     return functions
 
 

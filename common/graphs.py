@@ -3,6 +3,44 @@ import pydot
 def path_to_edges(path):
     return [edge for edge in zip(path, path[1:])]
 
+
+class Path:
+    def __init__(self, linklist):
+        """linklist = list of pairs (edge, node).
+        First edge must be None.
+        """
+        if linklist[0][0] is not None:
+            raise ValueError("Malformed linklist")
+        self.linklist = linklist
+    
+    def get_nodes(self):
+        return [link[1] for link in self.linklist[1:]]
+
+    def get_edges(self):
+        return [link[0] for link in self.linklist]
+
+
+def iteredgepaths(graph_head, follow_iter=None):
+    if follow_iter is None:
+        follow_iter = lambda stack: (((stack[-1][1], follow), follow) for follow in stack[-1][1].following)
+    
+    def make_yield(path):
+        return Path(path)
+    
+    def iterator(previous, edge, node):
+        current_path = previous + [(edge, node)]
+        
+        child_present = False
+        for next_edge, next_node in follow_iter(current_path):
+            for path in iterator(current_path, next_edge, next_node):
+                child_present = True
+                yield path
+        
+        if not child_present:
+            yield make_yield(current_path)
+    
+    return iterator([], None, graph_head)
+
     
 def iterpaths(graph_head, follow_func=None, partial=False, on_backwards=False):
     if follow_func is None:
@@ -29,13 +67,10 @@ def iterpaths(graph_head, follow_func=None, partial=False, on_backwards=False):
             yield make_yield(current_path, True)
             if on_backwards:
                 yield make_yield(current_path, False)
-            return
-
-        if on_backwards and partial:
+        elif on_backwards and partial:
             yield make_yield(current_path, False)
 
-    for n in iterator([], graph_head):
-        yield n
+    return iterator([], graph_head)
 
 
 def iteredges(graph_head, follow_func=None):

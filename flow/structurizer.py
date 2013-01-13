@@ -1,6 +1,8 @@
 from common.closures import *
 from common.graphs import *
 
+import functools
+
 """Converts flat control flow graphs into structured (nested) graphs (control flow trees). It doesn't work on graphs with infinite loops/stops.
 
 Definitions:
@@ -46,7 +48,7 @@ Mark reverse edges:
 
 """
 
-def ordered_next_edge(node, reverse_edges):
+def ordered_next_link(node, reverse_edges):
     for following in node.following:
         if (node, following) not in reverse_edges:
             yield (node, following), following
@@ -54,20 +56,28 @@ def ordered_next_edge(node, reverse_edges):
         if (preceding, node) in reverse_edges:
             yield (preceding, node), preceding
 
+ordered_next_edge = ordered_next_link
+
 
 def ordered_next_node(node, reverse_edges):
-    return (n for e, n in ordered_next_edge(node, reverse_edges))
+    return (n for e, n in ordered_next_link(node, reverse_edges))
 
-ordered_next = ordered_next_node    
+ordered_next = ordered_next_node
 
 
-def ordered_prev(node, reverse_edges):
+def ordered_prev_link(node, reverse_edges):
     for following in node.following:
         if (node, following) in reverse_edges:
-            yield following
+            yield (node, following), following
     for preceding in node.preceding:
         if (preceding, node) not in reverse_edges:
-            yield preceding
+            yield (preceding, node), preceding    
+
+
+def ordered_prev_node(node, reverse_edges):
+    return (n for e, n in ordered_prev_link(node, reverse_edges))
+
+ordered_prev = ordered_prev_node
 
 
 def structurize_mess(mess, reverse_paths):
@@ -105,64 +115,70 @@ class MessStructurizer:
         # find all pre-dominators and post-dominators
         # XXX: they should be found according to normal flow direction... or something, to reduce simple >A->B< links
         
-        def restricted_follow(first_edge, stack):
-            if len(stack) == 1:
-                # problem (?): accepts only forward links
-                first_start, first_end = first_edge
-                if first_start != stack[0]:
-                    return
-                for node in follow_func(stack):
-                    if node == first_end:
-                        yield node
-            else:
-                for node in follow_func(stack):
-                    yield node
-
-        def restricted_follow_rev(last_edge, stack):
-            if len(stack) == 1:
-                # problem (?): accepts only reverse links
-                last_start, last_end = last_edge
-                if last_end != stack[0]:
-                    return
-                for node in follow_func(stack):
-                    if node == last_start:
-                        yield node
-            else:
-                for node in follow_rev(stack):
-                    yield node                    
+        def follow_link_iter(stack):
+            edge, node = stack[-1]
+            return ordered_next_link(node, self.reverse_edges)
+            
+        def follow_rev_link_iter(stack):
+            edge, node = stack[-1]
+            return ordered_prev_link(node, self.reverse_edges)
                 
         edges_to_predoms = {}
         edges_to_postdoms = {}
         for edge in iteredges(self.mess_closure.begin):
-            edges_to_predoms[edge] = find_unordered_dominators(edge[1], follow_func=functools.partial(restricted_follow_rev, edge))
-            edges_to_postdoms[edge] = find_unordered_dominators(edge[0], follow_func=functools.partial(restricted_follow, edge))
+            if edge in self.reverse_edges:
+                last, first = edge
+            else:
+                first, last = edge
+                
+            edges_to_predoms[edge] = find_unordered_dominator_edges(last, follow_func=follow_link_iter)
+            edges_to_postdoms[edge] = find_unordered_dominator_edges(first, follow_func=follow_rev_link_iter)
 
         print(self.mess_closure.begin)
-        print(nodes_to_predoms)
-        print(nodes_to_postdoms)
+        print(edges_to_predoms)
+        print(edges_to_postdoms)
 
         for edge in iteredges(self.mess_closure.begin,
-                                           follow_func=follow_edge_func):
-            source, target = edge
+                              follow_func=follow_edge_func):
+                                           
+            if edge not in self.reverse_edges:
+                source, target = edge
 
-            
-            if len(source.following) != 1:
-                start = target
-            else:
-                start = source
+                if len(source.following) != 1:
+                    start = target
+                else:
+                    start = source
+                    
+    #            end_edge = stretchwise both-dominator EDGE of edge (incl self)
                 
-#            end_edge = stretchwise both-dominator EDGE of edge (incl self)
-            
-            end_source, end_target = end_edge
-            
-            if len(end_target.preceding) != 1:
-                end = end_source
+                end_source, end_target = end_edge
+                
+                if len(end_target.preceding) != 1:
+                    end = end_source
+                else:
+                    end = end_target
+                
+                if start != end:
+                    wrap(start, end)
             else:
-                end = end_target
-            
-            if start != end:
-                wrap(start, end)
-            
+                # do the sae thing, but pay attention to order
+                end_source, end_target = edge
+                
+                if len(end_target.preceding) != 1:
+                    end = end_source
+                else:
+                    end = end_target
+                
+#                start_edge = stretchwise both-dominator EGE of edge (incl self)
+                
+                source, target = start_edge
+                if len(source.following) != 1:
+                    start = target
+                else:
+                    start = source
+
+                if start != end:
+                    wrap(start, end)            
             
             # ---------OLD
             path = iterpaths(startnode, follow_func=follow_func).next()
@@ -437,7 +453,17 @@ def find_unordered_dominators(node, follow_func):
         if doms is None:
             doms = set(path[1:]) # remove self
         else:
-            doms.intersection_update(frozenset(path))
+            doms.intersection_update(path)
+    return doms
+
+
+def find_unordered_dominator_edges(node, follow_func):
+    doms = None
+    for path in iteredgepaths(node, follow_iter=follow_func):
+        if doms is None:
+            doms = set(path.get_edges())
+        else:
+            doms.intersection_update(path.get_edges())
     return doms
 
 
