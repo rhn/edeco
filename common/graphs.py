@@ -14,10 +14,10 @@ class Path:
         self.linklist = linklist
     
     def get_nodes(self):
-        return [link[1] for link in self.linklist[1:]]
+        return [link[1] for link in self.linklist]
 
     def get_edges(self):
-        return [link[0] for link in self.linklist]
+        return [link[0] for link in self.linklist[1:]]
 
 
 def iteredgepaths(graph_head, follow_iter=None):
