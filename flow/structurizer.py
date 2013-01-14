@@ -143,13 +143,19 @@ class MessStructurizer:
                 return edge
             
             # start searching from the fathest one
-            for postdom in reverse(edge_dominators):
+            for postdom in reversed(edge_dominators):
                 # if is dominated by edge, then we ound it
                 if edge in edges_to_predoms[postdom]:
                     return postdom
             
             # if no dominator of edge is also dominated by edge, then edge is the only such dominator
             return edge
+            
+        def wrap(start, end):
+            """Wraps nodes (and whatever is between them) together in a future banana. Rewires accordingly,
+            """
+     #       FCUK: update reverse edges after each rewiring
+            print('Farthest node that is predomed by {0} is {1}, need to wrap'.format(start, end))
 
         print(self.mess_closure.begin)
         print(edges_to_predoms)
@@ -157,7 +163,8 @@ class MessStructurizer:
 
         for edge in iteredges(self.mess_closure.begin,
                               follow_func=follow_edge_func):
-                                           
+                              
+            # find lowest node for which top is dominator
             if edge not in self.reverse_edges:
                 source, target = edge
 
@@ -186,7 +193,7 @@ class MessStructurizer:
                 else:
                     end = end_target
                 
-#                start_edge = stretchwise both-dominator EGE of edge (incl self)
+                start_edge = get_both_dominator(edge)
                 
                 source, target = start_edge
                 if len(source.following) != 1:
@@ -197,24 +204,6 @@ class MessStructurizer:
                 if start != end:
                     wrap(start, end)            
             
-            # ---------OLD
-            old
-            path = iterpaths(startnode, follow_func=follow_func).next()
-            end = None
-            for endnode in path:
-                if startnode in nodes_to_predoms[endnode] and endnode in nodes_to_postdoms[startnode]:
-                    end = endnode
-            
-            if end is None:
-                print('{0} is at its final depth already, not wrapping'.format(startnode))
-            else:
-                # self.print_dot('noend.dot', marked_edges=[path_to_edges(path)], marked_nodes=[[startnode]])
-                # raise Exception("not sure.")
-                print('Farthest node that is predomed by {0} is {1}, need to wrap'.format(startnode, end))
-            # find lowest node for which top is dominator
-   #         wrap them together in a bananacandidate
-    #        rewire
-     #       FCUK: update reverse edges after each rewiring
         self.bananas = bananas
         
     def merge_straightlinks(self):
