@@ -82,7 +82,7 @@ ordered_prev = ordered_prev_node
 
 def structurize_mess(mess, reverse_paths):
     wrapper = MessStructurizer(mess, reverse_paths)
-    wrapper.print_dot('raw_mess.dot')
+    wrapper.print_dot('raw_mess.dot', marked_edges=[reverse_paths])
     wrapper.wrap_largest_bananas()
     for banana in wrapper.bananas:
         BS(banana).structurize()
@@ -145,7 +145,7 @@ class MessStructurizer:
             # start searching from the fathest one
             for postdom in reverse(edge_dominators):
                 # if is dominated by edge, then we ound it
-                if edge in edges_to_predoms[postdom]
+                if edge in edges_to_predoms[postdom]:
                     return postdom
             
             # if no dominator of edge is also dominated by edge, then edge is the only such dominator
@@ -484,6 +484,13 @@ def find_unordered_dominator_edges(node, follow_iter):
         else:
             doms.intersection_update(edges)
     return doms
+
+
+def find_ordered_dominator_edges(node, follow_iter):
+    doms = find_unordered_dominator_edges(node, follow_iter)
+    path = iteredgepaths(node, follow_iter=follow_iter).next()
+
+    return list(filter(doms.__contains__, path.get_edges()))
 
 
 def find_post_dominators(node, follow_func):
