@@ -225,6 +225,9 @@ class GraphWrapper: # necessarily a bananawrapper
         self.split()
         self.pack_banana()
         for sub in self.subs:
+            print("Structurizing", sub)
+            for closure in sub.closures:
+                print(closure, closure.following)
             structurize_mess(sub, self.reverse_edges)
     
     def pack_banana(self):
@@ -324,7 +327,10 @@ class GraphWrapper: # necessarily a bananawrapper
             
             if dom is None:
                 raise ValueError("Post-dominator not found for {0}".format(current))
+            print current, current.preceding, current.preceding[1].following
             subgraph = self.wrap_sub(current, dom)
+            print current, current.preceding, current.preceding[1].following
+            print self.reverse_edges
             # rewire
 
             # Assumption: going only forward in respect to flow (only works inside bananas)
@@ -332,11 +338,14 @@ class GraphWrapper: # necessarily a bananawrapper
             # FIXME: remember about reverse edges! they need to be connected on the correct side of the mess
             if current is subgraph.begin:
                 for preceding in current.preceding[:]:
+                    print(preceding, current)
                     if (preceding, current) not in self.reverse_edges:
+                        print("notrev")
                         preceding.following.remove(current)
                         preceding.following.append(subgraph)
                         subgraph.preceding.append(preceding)
                         current.preceding.remove(preceding)
+                print current, current.preceding
                 for following in current.following:
                     if (current, following) in self.reverse_edges:
                         raise Exception("A node initiating a subflow should have all its followers going inside the subflow.")
@@ -360,7 +369,6 @@ class GraphWrapper: # necessarily a bananawrapper
                 # XXX
                 dom.preceding = [subgraph]
                 subgraph.following = [dom]
-
             print('sub', subgraph)
             print('begin', subgraph.begin, subgraph.begin.preceding, subgraph.begin.following)
             print('end', subgraph.end, subgraph.end.preceding, subgraph.end.following)
