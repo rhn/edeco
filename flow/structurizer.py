@@ -325,7 +325,6 @@ class GraphWrapper: # necessarily a bananawrapper
             if dom is None:
                 raise ValueError("Post-dominator not found for {0}".format(current))
             subgraph = self.wrap_sub(current, dom)
-            
             # rewire
 
             # Assumption: going only forward in respect to flow (only works inside bananas)
@@ -361,10 +360,10 @@ class GraphWrapper: # necessarily a bananawrapper
                 # XXX
                 dom.preceding = [subgraph]
                 subgraph.following = [dom]
-            
+            print(dom, dom.following)
             print('sub', subgraph)
-            print('begin', subgraph.begin.preceding, subgraph.begin.following)
-            print('end', subgraph.end.preceding, subgraph.end.following)
+            print('begin', subgraph.begin, subgraph.begin.preceding, subgraph.begin.following)
+            print('end', subgraph.end, subgraph.end.preceding, subgraph.end.following)
             
             self.subs.append(subgraph)
             self.print_dot('dropped_{0}.dot'.format(len(self.subs)))

@@ -112,11 +112,14 @@ class ConnectedMessDisplay(LooseMessDisplay):
 
             following = self.closure.get_following(closure)
             if following:
-                following_string = '\n' + indent('\n'.join(map(get_short_dest_name,
-                                                               following)),
-                                                 '// To: ')
+                following_strings = list(map(get_short_dest_name, following))
             else:
-                following_string = '\n// END'
+                following_strings = []
+            if closure is self.closure.end:
+                following_strings.append("End")
+            
+            following_string = '\n' + indent('\n'.join(following_strings),
+                                             '// To: ')
             
             id_string = 'Item ' + self.get_short_name(closuredisplay) + ': '
             inside.append(preceding_string + id_string + str(closuredisplay) + following_string)

@@ -120,7 +120,7 @@ class LooseMess(Closure):
                     self.closures.remove(next)
                     self.closures.add(banana)
     
-    def get_following(self, node):
+    def get_following(self, node): # XXX: include END?
         return node.following
     
     get_followers = get_following
