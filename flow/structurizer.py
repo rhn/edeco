@@ -360,7 +360,7 @@ class GraphWrapper: # necessarily a bananawrapper
                 # XXX
                 dom.preceding = [subgraph]
                 subgraph.following = [dom]
-            print(dom, dom.following)
+
             print('sub', subgraph)
             print('begin', subgraph.begin, subgraph.begin.preceding, subgraph.begin.following)
             print('end', subgraph.end, subgraph.end.preceding, subgraph.end.following)
@@ -496,7 +496,6 @@ def find_mess(start, end, reverse_edges):
     #TODO: cut start/end connections
     # determine if starts with split or looplike join
     # XXX: make sure outer loop layers are peeled if joins from nested loops
-    
     start_index = None
     if not any((preceding, start) in reverse_edges for preceding in start.preceding): # if not loop-join
         start_index = 1
@@ -532,7 +531,6 @@ def find_mess(start, end, reverse_edges):
         start_nodes.add(snode)
         end_nodes.add(enode)
         contents.update(set(path))
-    
     print('mess contents', contents)
     return LooseMess(contents, start_nodes, end_nodes)
 

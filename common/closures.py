@@ -67,14 +67,13 @@ class LooseMess(Closure):
     def rewire_create(self):
         beginnings = self.beginnings
         endings = self.endings
-        
         # place beginnings
         # create a virtual begin node if necessary
         if len(beginnings) == 1:
             self.begin = list(beginnings)[0]
         else:
             self.begin = Closure(self)
-            self.begin.following = beginnings
+            self.begin.following = list(beginnings)
             for beginning in beginnings:
                 beginning.preceding = [self.begin]
         
@@ -84,7 +83,7 @@ class LooseMess(Closure):
             self.end = list(endings)[0]
         else:
             self.end = Closure(self)
-            self.begin.preceding = endings
+            self.end.preceding = list(endings)
             for ending in endings:
                 ending.following = [self.end]
     
