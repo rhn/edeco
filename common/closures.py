@@ -65,8 +65,6 @@ class LooseMess(Closure):
         self.rewire_create()
 
     def rewire_create(self):
-        for node in self.closures:
-            print("foll", node, node.following)
         beginnings = self.beginnings
         endings = self.endings
         # place beginnings
@@ -81,8 +79,6 @@ class LooseMess(Closure):
                     if preceding not in self.closures:
                         beginning.preceding.remove(preceding)
                         beginning.preceding.append(self.end)       
-        for node in self.closures:
-            print("fobb", node, node.following)
         # place endings
         # repeat for end nodes
         if len(endings) == 1:
@@ -95,8 +91,6 @@ class LooseMess(Closure):
                     if following not in self.closures:
                         ending.following.remove(following)
                         ending.following.append(self.end)
-        for node in self.closures:
-            print("foee", node, node.following)
     
     def reduce_straightlinks(self):
         """Finds all chains ...A->B... and wraps them into finished bananas."""
@@ -131,7 +125,13 @@ class LooseMess(Closure):
                     self.closures.add(banana)
     
     def get_following(self, node): # XXX: include END?
-        return node.following
+        """Returns high-level followers suitable for display. Replaces virtual end closure wih None."""
+        if self.end in self.closures:
+            return node.following
+        ret = node.following[:]
+        if self.end in ret:
+            ret.remove(self.end)
+        return ret
     
     get_followers = get_following
     

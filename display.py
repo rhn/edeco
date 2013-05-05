@@ -52,7 +52,7 @@ class ConnectedMessDisplay(LooseMessDisplay):
         for closuredisplay in self.insides:
             if closure == closuredisplay.closure:
                 return closuredisplay
-        raise ValueError("Closure " + str(closure) + ' not found in subdisplays')
+        raise ValueError("Closure " + str(closure) + ' not found in subdisplays of ' + str(self.closure))
                 
     def get_short_name(self, display, end=False):
         if display is None:

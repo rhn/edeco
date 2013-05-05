@@ -98,6 +98,17 @@ class MessStructurizer:
     
     def wrap_largest_bananas(self):
         """Wraps all bananas that can be potentially found, but starts with largest. They won't be structured at first.
+        
+        Follow links in "ordered" fashion - in this way find pairs of most distant edges that dominate each other and wrap them in bananas.
+        This will wrap forward flows as well as reverse flows.
+            Strategy for cutting off: include start node, if node does not split; include end node if node is not joined from elsewhere.
+        
+        FIXME: strategy for:
+            ->M->N
+            ->M<-N->
+            M should be ghosted somehow...
+        
+        FIXME: strategy for reducing shortlinks
         """
         def follow_func(stack):
             return ordered_next(stack[-1], self.reverse_edges)
@@ -144,7 +155,7 @@ class MessStructurizer:
             
             # start searching from the fathest one
             for postdom in reversed(edge_dominators):
-                # if is dominated by edge, then we ound it
+                # if is dominated by edge, then we found it
                 if edge in edges_to_predoms[postdom]:
                     return postdom
             
@@ -156,53 +167,42 @@ class MessStructurizer:
             """
      #       FCUK: update reverse edges after each rewiring
             print('Farthest node that is predomed by {0} is {1}, need to wrap'.format(start, end))
-
-        print(self.mess_closure.begin)
-        print(edges_to_predoms)
-        print(edges_to_postdoms)
+        print("reverse", self.reverse_edges)
+        print("begin", self.mess_closure.begin)
+        print("predoms", edges_to_predoms)
+        print("postdoms", edges_to_postdoms)
 
         for edge in iteredges(self.mess_closure.begin,
                               follow_func=follow_edge_func):
-                              
-            # find lowest node for which top is dominator
+            print("E", edge)
+            # find lowest edge for which top is dominator
+            both_dominator = get_both_dominator(edge)
+#            nodes_between = find_nodes(edge, both_dominator)
+            # find all nodes in between
+            # remove the top node if it splits
+            # XXX: handle the top node if it joins from lower
+            # similar rules for bottom
             if edge not in self.reverse_edges:
+                print("fw")
                 source, target = edge
-
-                if len(source.following) != 1:
-                    start = target
-                else:
-                    start = source
-                    
-                end_edge = get_both_dominator(edge)
-                
-                end_source, end_target = end_edge
-                
-                if len(end_target.preceding) != 1:
-                    end = end_source
-                else:
-                    end = end_target
-                
-                if start != end:
-                    wrap(start, end)
+                end_source, end_target = both_dominator
             else:
-                # do the sae thing, but pay attention to order
+                print("rev")
+                # do the same thing, but pay attention to order
+                source, target = both_dominator
                 end_source, end_target = edge
                 
-                if len(end_target.preceding) != 1:
-                    end = end_source
-                else:
-                    end = end_target
-                
-                start_edge = get_both_dominator(edge)
-                
-                source, target = start_edge
-                if len(source.following) != 1:
-                    start = target
-                else:
-                    start = source
-
-                if start != end:
-                    wrap(start, end)            
+            if len(source.following) != 1:
+                start = target
+            else:
+                start = source
+            
+            if len(end_target.preceding) != 1:
+                end = end_source
+            else:
+                end = end_target
+            if start != end and not (end, start) == edge:
+                wrap(start, end)            
             
         self.bananas = bananas
         
@@ -225,9 +225,6 @@ class GraphWrapper: # necessarily a bananawrapper
         self.split()
         self.pack_banana()
         for sub in self.subs:
-            print("Structurizing", sub)
-            for closure in sub.closures:
-                print(closure, closure.following)
             structurize_mess(sub, self.reverse_edges)
     
     def pack_banana(self):
@@ -327,10 +324,7 @@ class GraphWrapper: # necessarily a bananawrapper
             
             if dom is None:
                 raise ValueError("Post-dominator not found for {0}".format(current))
-            print current, current.preceding, current.preceding[1].following
             subgraph = self.wrap_sub(current, dom)
-            print current, current.preceding, current.preceding[1].following
-            print self.reverse_edges
             # rewire
 
             # Assumption: going only forward in respect to flow (only works inside bananas)
@@ -338,14 +332,11 @@ class GraphWrapper: # necessarily a bananawrapper
             # FIXME: remember about reverse edges! they need to be connected on the correct side of the mess
             if current is subgraph.begin:
                 for preceding in current.preceding[:]:
-                    print(preceding, current)
                     if (preceding, current) not in self.reverse_edges:
-                        print("notrev")
                         preceding.following.remove(current)
                         preceding.following.append(subgraph)
                         subgraph.preceding.append(preceding)
                         current.preceding.remove(preceding)
-                print current, current.preceding
                 for following in current.following:
                     if (current, following) in self.reverse_edges:
                         raise Exception("A node initiating a subflow should have all its followers going inside the subflow.")
@@ -484,6 +475,7 @@ def find_unordered_dominator_edges(node, follow_iter):
 
 def find_ordered_dominator_edges(node, follow_iter):
     doms = find_unordered_dominator_edges(node, follow_iter)
+    print follow_iter, node, doms
     path = iteredgepaths(node, follow_iter=follow_iter).next()
 
     return list(filter(doms.__contains__, path.get_edges()))
