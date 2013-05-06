@@ -53,7 +53,6 @@ def iterpaths(graph_head, follow_func=None, partial=False, on_backwards=False):
 
     def iterator(previous, node):
         current_path = previous + [node]
-        
         if partial:
             yield make_yield(current_path, True)
         
@@ -69,7 +68,6 @@ def iterpaths(graph_head, follow_func=None, partial=False, on_backwards=False):
                 yield make_yield(current_path, False)
         elif on_backwards and partial:
             yield make_yield(current_path, False)
-
     return iterator([], graph_head)
 
 

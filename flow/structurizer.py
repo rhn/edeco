@@ -98,7 +98,20 @@ class MessStructurizer:
     
     def wrap_largest_bananas(self):
         """Wraps all bananas that can be potentially found, but starts with largest. They won't be structured at first.
-        
+        """
+        bananas = []
+        while True:
+            new_banana = self.find_wrap_banana()
+            print(new_banana)
+            if new_banana is None:
+                break
+            bananas.append(new_banana)
+            self.print_dot('banana_swallowed.dot', marked_edges=    [self.reverse_edges])
+        self.bananas = bananas
+    
+    def find_wrap_banana(self):
+        """
+        Wraps the first banana it can find. Needs to restart the search every time anew because the graph gets restructured significantly.
         Follow links in "ordered" fashion - in this way find pairs of most distant edges that dominate each other and wrap them in bananas.
         This will wrap forward flows as well as reverse flows.
             Strategy for cutting off: include start node, if node does not split; include end node if node is not joined from elsewhere.
@@ -121,7 +134,6 @@ class MessStructurizer:
 
         # XXX: exclude self from pre-dominators
         # XXX: self-loops?
-        bananas = []
 
         # find all pre-dominators and post-dominators
         # XXX: they should be found according to normal flow direction... or something, to reduce simple >A->B< links
@@ -167,16 +179,41 @@ class MessStructurizer:
             """
      #       FCUK: update reverse edges after each rewiring
             print('Farthest node that is predomed by {0} is {1}, need to wrap'.format(start, end))
+            mess = wrap_between(start, end, self.reverse_edges)
+            # sinle entry and single exit guaranteed
+            if not mess.begin == start:
+                raise Exception("Something went wrong.")
+            if not mess.end == end:
+                raise Exception("Something went wrong.")
+            
+            for preceding in start.preceding[:]:
+                if preceding not in mess.closures:
+                    start.preceding.remove(preceding)
+                    preceding.following.remove(start)
+                    preceding.following.append(mess)
+                    mess.preceding.append(preceding)
+            
+            for following in end.following[:]:
+                if following not in mess.closures:
+                    end.following.remove(following)
+                    following.preceding.remove(end)
+                    following.preceding.append(mess)
+                    mess.following.append(following)
+            print("wrapped", mess)
+            raw_input()
+            return mess
+            
         print("reverse", self.reverse_edges)
         print("begin", self.mess_closure.begin)
         print("predoms", edges_to_predoms)
         print("postdoms", edges_to_postdoms)
-
+        
         for edge in iteredges(self.mess_closure.begin,
                               follow_func=follow_edge_func):
             print("E", edge)
             # find lowest edge for which top is dominator
             both_dominator = get_both_dominator(edge)
+            print("BD", both_dominator)
 #            nodes_between = find_nodes(edge, both_dominator)
             # find all nodes in between
             # remove the top node if it splits
@@ -192,19 +229,20 @@ class MessStructurizer:
                 source, target = both_dominator
                 end_source, end_target = edge
                 
-            if len(source.following) != 1:
+#            if len(source.following) != 1:
+            if True:
                 start = target
             else:
                 start = source
             
-            if len(end_target.preceding) != 1:
+#            if len(end_target.preceding) != 1:
+            if True:
                 end = end_source
             else:
                 end = end_target
             if start != end and not (end, start) == edge:
-                wrap(start, end)            
-            
-        self.bananas = bananas
+                return wrap(start, end)
+        return None
         
     def merge_straightlinks(self):
         return self.mess_closure.reduce_straightlinks()
@@ -475,7 +513,6 @@ def find_unordered_dominator_edges(node, follow_iter):
 
 def find_ordered_dominator_edges(node, follow_iter):
     doms = find_unordered_dominator_edges(node, follow_iter)
-    print follow_iter, node, doms
     path = iteredgepaths(node, follow_iter=follow_iter).next()
 
     return list(filter(doms.__contains__, path.get_edges()))
@@ -491,6 +528,22 @@ def find_post_dominators(node, follow_func):
             dom_list.append(child)
     return dom_list
     
+def wrap_between(start, end, reverse_edges):
+    print 'wrap', start, end
+    def follow_func(stack):
+        if stack[-1] is end:
+            return ()
+        else:
+            return ordered_next(stack[-1], reverse_edges)
+
+    contents = set()
+    for path in iterpaths(start, follow_func=follow_func):
+        print path
+        if len(path) < 2:
+            raise Exception
+        contents.update(set(path))
+    return LooseMess(contents, set([start]), set([end]))
+
 
 def find_mess(start, end, reverse_edges):
     #TODO: cut start/end connections
