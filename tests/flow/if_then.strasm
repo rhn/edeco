@@ -1,0 +1,12 @@
+function test {
+    0
+    1
+    flow {{
+        -> #0, end
+        #0 {
+            2
+        } -> end
+    }}
+    3
+    4
+}
