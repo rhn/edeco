@@ -14,6 +14,18 @@ class Closure:
         self.following = []
         self.parent = parent
 
+    def replace_following(self, replaced, replacing):
+        self.following.remove(replaced)
+        replaced.preceding.remove(self)
+        self.following.append(replacing)
+        replacing.preceding.append(self)
+
+    def replace_preceding(self, replaced, replacing):
+        self.preceding.remove(replaced)
+        replaced.following.remove(self)
+        self.preceding.append(replacing)
+        replacing.following.append(self)
+
 
 class Banana(Closure):
     """Linear flow, composed of 0 or more ordered Closures."""
