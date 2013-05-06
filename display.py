@@ -123,7 +123,9 @@ class ConnectedMessDisplay(LooseMessDisplay):
             
             id_string = 'Item ' + self.get_short_name(closuredisplay) + ':'
             inside.append(preceding_string + id_string + ' {\n' + \
-                          str(closuredisplay) + '\n}\n' + following_string)
+                              indent(str(closuredisplay)) + \
+                          '\n}\n' + \
+                          following_string)
         
         starts = self.get_starting_subdisplays()
         starts_str = ' '.join(map(lambda x: self.get_short_name(x, True), starts))
