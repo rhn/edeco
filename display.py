@@ -132,7 +132,7 @@ class ConnectedMessDisplay(LooseMessDisplay):
 
 class NodeBasedMessDisplay(ConnectedMessDisplay):
     def get_starting_subdisplays(self):
-        return [self.get_display(self.closure.begin)]
+        return [self.get_display(closure) for closure in self.closure.beginnings]
             
 LooseMessDisplay = NodeBasedMessDisplay
 

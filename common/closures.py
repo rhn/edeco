@@ -27,6 +27,17 @@ class Closure:
         replacing.following.append(self)
 
 
+class NamedClosure(Closure):
+    def __init__(self, parent, name):
+        Closure.__init__(self, parent)
+        self.name = name
+    
+    def __str__(self):
+        return self.name
+    
+    __repr__ = __str__
+
+
 class Banana(Closure):
     """Linear flow, composed of 0 or more ordered Closures."""
     def __init__(self, closures):
@@ -84,19 +95,19 @@ class LooseMess(Closure):
         if len(beginnings) == 1:
             self.begin = list(beginnings)[0]
         else:
-            self.begin = Closure(self)
+            self.begin = NamedClosure(self, "begin")
             self.begin.following = list(beginnings)
             for beginning in beginnings:
                 for preceding in beginning.preceding[:]:
                     if preceding not in self.closures:
                         beginning.preceding.remove(preceding)
-                        beginning.preceding.append(self.end)       
+                        beginning.preceding.append(self.begin)       
         # place endings
         # repeat for end nodes
         if len(endings) == 1:
             self.end = list(endings)[0]
         else:
-            self.end = Closure(self)
+            self.end = NamedClosure(self, "end")
             self.end.preceding = list(endings)
             for ending in endings:
                 for following in ending.following[:]:
@@ -150,12 +161,19 @@ class LooseMess(Closure):
         ret = node.following[:]
         if self.end in ret:
             ret.remove(self.end)
+            ret.append(None)
         return ret
     
     get_followers = get_following
     
     def get_preceding(self, node):
-        return node.preceding
+        if self.begin in self.closures:
+            return node.preceding
+        ret = node.preceding[:]
+        if self.begin in ret:
+            ret.remove(self.begin)
+            ret.append(None)
+        return ret
     
     def __str__(self):
         return '{' + ', '.join(map(str, self.closures)) + '}'
