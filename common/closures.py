@@ -96,24 +96,41 @@ class LooseMess(Closure):
             self.begin = list(beginnings)[0]
         else:
             self.begin = NamedClosure(self, "begin")
-            self.begin.following = list(beginnings)
-            for beginning in beginnings:
-                for preceding in beginning.preceding[:]:
-                    if preceding not in self.closures:
-                        beginning.preceding.remove(preceding)
-                        beginning.preceding.append(self.begin)       
         # place endings
         # repeat for end nodes
         if len(endings) == 1:
             self.end = list(endings)[0]
         else:
             self.end = NamedClosure(self, "end")
-            self.end.preceding = list(endings)
+        
+        # sanity check here for straightlink from begin to end:
+        # len(endings) > 1, len(beginnings) > 1    
+        
+        if len(beginnings) > 1:
+            following = []
+            for beginning in beginnings:
+                if beginning is None: # link straight to end
+                    following.append(self.end)
+                else:
+                    following.append(beginning)
+                    for preceding in beginning.preceding[:]:
+                        if preceding not in self.closures:
+                            beginning.preceding.remove(preceding)
+                            beginning.preceding.append(self.begin)
+            self.begin.following = following
+                            
+        if len(endings) > 1:
+            preceding = []
             for ending in endings:
-                for following in ending.following[:]:
-                    if following not in self.closures:
-                        ending.following.remove(following)
-                        ending.following.append(self.end)
+                if ending is None: # link straight from start
+                    preceding.append(self.begin)
+                else:
+                    preceding.append(ending)
+                    for following in ending.following[:]:
+                        if following not in self.closures:
+                            ending.following.remove(following)
+                            ending.following.append(self.end)
+            self.end.preceding = preceding
     
     def replace_closures(self, replaced, replacing):
         closures = set(self.closures)
