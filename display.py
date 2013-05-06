@@ -117,7 +117,7 @@ class ConnectedMessDisplay(LooseMessDisplay):
                 following_strings = []
             if closure is self.closure.end:
                 following_strings.append("End")
-            
+
             following_string = indent('\n'.join(following_strings),
                                       '// To: ')
             

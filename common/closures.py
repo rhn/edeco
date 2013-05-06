@@ -133,12 +133,25 @@ class LooseMess(Closure):
             self.end.preceding = preceding
     
     def replace_closures(self, replaced, replacing):
+        """Replaces multiple closures with a single one"""
         def replace_from_set(s, old, new):
-            return set(s).difference(old).union(new)
+            ret = set(s).difference(old)
+            ret.add(new)
+            return ret
 
         closures = replace_from_set(self.closures, replaced, replacing)
         beginnings = replace_from_set(self.beginnings, replaced, replacing)
         endings = replace_from_set(self.endings, replaced, replacing)
+        
+        if self.begin in replaced:
+            if self.begin not in self.closures:
+                raise Exception("Oh no. Trying to encapsulate virtual node. This will lead to trouble?")
+            self.begin = replacing
+        if self.end in replaced:
+            if self.end not in self.closures:
+                raise Exception("Oh no. Trying to encapsulate virtual node. This will lead to trouble?")
+            self.end = replacing
+            
         self.closures = closures
         self.beginnings = beginnings
         self.endings = endings

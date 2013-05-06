@@ -193,7 +193,7 @@ class MessStructurizer:
             for following in end.following[:]:
                 if following not in mess.closures:
                     following.replace_preceding(end, mess)
-            self.mess_closure.replace_closures(mess.closures, [mess])
+            self.mess_closure.replace_closures(mess.closures, mess)
             print("wrapped {0} inside {1}".format(mess, self.mess_closure))
             return mess
             
@@ -363,7 +363,7 @@ class BananaStructurizer(BaseBananaStructurizer):
     
     def wrap_sub(self, start, end):
         sub = BaseBananaStructurizer.wrap_sub(self, start, end)
-        self.mess_closure.replace_closures(sub.closures, [sub])
+        self.mess_closure.replace_closures(sub.closures, sub)
         return sub
         
 

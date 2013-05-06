@@ -127,7 +127,8 @@ instruction_map = {'ret': RetInstruction,
                    'jle': CondJumpInstruction,
                    'jbe': CondJumpInstruction,
                    'je': CondJumpInstruction,
-                   'jl': CondJumpInstruction}
+                   'jl': CondJumpInstruction,
+                   'ja': CondJumpInstruction}
                    
 
 def Instruction(address, opcode, mnemonic, operands):
