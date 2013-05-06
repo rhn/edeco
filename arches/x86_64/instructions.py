@@ -119,11 +119,16 @@ class CallInstruction(BaseInstruction):
 
 
 instruction_map = {'ret': RetInstruction,
+                   'retq': RetInstruction,
                    'call': CallInstruction,
                    'jmp': JumpInstruction,
+                   'jmpq': JumpInstruction,
                    'jne': CondJumpInstruction,
-                   'jle': CondJumpInstruction}
-
+                   'jle': CondJumpInstruction,
+                   'jbe': CondJumpInstruction,
+                   'je': CondJumpInstruction,
+                   'jl': CondJumpInstruction}
+                   
 
 def Instruction(address, opcode, mnemonic, operands):
     return instructions.Instruction(machine.Architecture, address, opcode, mnemonic, operands, instruction_map, SimpleInstruction)
