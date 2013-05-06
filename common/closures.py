@@ -104,8 +104,15 @@ class LooseMess(Closure):
                         ending.following.remove(following)
                         ending.following.append(self.end)
     
+    def replace_closures(self, replaced, replacing):
+        closures = set(self.closures)
+        closures.difference_update(replaced)
+        closures.update(replacing)
+        self.closures = closures
+    
     def reduce_straightlinks(self):
         """Finds all chains ...A->B... and wraps them into finished bananas."""
+        return
         for node in graphs.iternodes(self.begin):
             if len(node.following) == 1 and not node is self.end:
                 next = node.following[0]

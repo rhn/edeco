@@ -85,7 +85,7 @@ def structurize_mess(mess, reverse_paths):
     wrapper.print_dot('raw_mess.dot', marked_edges=[reverse_paths])
     wrapper.wrap_largest_bananas()
     for banana in wrapper.bananas:
-        BS(banana).structurize()
+        BananaStructurizer(banana).structurize()
     wrapper.merge_straightlinks()
     wrapper.print_dot('straightlinked.dot')
 
@@ -193,8 +193,8 @@ class MessStructurizer:
             for following in end.following[:]:
                 if following not in mess.closures:
                     following.replace_preceding(end, mess)
-            print("wrapped", mess)
-            raw_input()
+            self.mess_closure.replace_closures(mess.closures, [mess])
+            print("wrapped {0} inside {1}".format(mess, self.mess_closure))
             return mess
             
         print("reverse", self.reverse_edges)
@@ -245,20 +245,82 @@ class MessStructurizer:
         return as_dot(filename, self.mess_closure.begin, marked_nodes=marked_nodes, marked_edges=marked_edges)
 
 
-class GraphWrapper: # necessarily a bananawrapper
-    def __init__(self, graph_head):
-        self.cfg_head = graph_head
-        self.graph_head = self.wrap_graph(self.cfg_head)
-        self.expand_intersections()
-        self.reverse_edges = None
-
+class BaseBananaStructurizer:
     def structurize(self):
         self.mark_reverse_edges()
         self.split()
         self.pack_banana()
         for sub in self.subs:
             structurize_mess(sub, self.reverse_edges)
-    
+
+    def mark_reverse_edges(self):
+        self.reverse_edges = find_reverse_edges(self.graph_head, self.graph_tail)
+
+    def split(self):
+        # XXX: this flow is stupid and sleepy. make it stateless and convert to passing data around
+        if self.reverse_edges is None:
+            raise RuntimeError("No reverse edges data")
+        self.subs = []
+        current = self.graph_head
+        while True:
+            # first follow forward trivial chains
+            while True:
+                nexts = list(self.ordered_next(current))
+                nexts_count = len(nexts)
+                if nexts_count == 1:
+                    current = nexts[0]
+                else:
+                    break
+            if nexts_count == 0: # end node
+                break
+            
+            # not end node, and not a trivial chain may proceed
+            dom = find_earliest_post_dominator(current, self.reverse_edges)
+            
+            if dom is None:
+                raise ValueError("Post-dominator not found for {0}".format(current))
+            subgraph = self.wrap_sub(current, dom)
+            # rewire
+
+            # Assumption: going only forward in respect to flow (only works inside bananas)
+            # take into account situation where neither current nor dom are inside, but they need a link (if-then) (XXX: this is from vague memory)
+            # FIXME: remember about reverse edges! they need to be connected on the correct side of the mess
+            if current is subgraph.begin:
+                for preceding in current.preceding[:]:
+                    if (preceding, current) not in self.reverse_edges:
+                        preceding.replace_following(current, subgraph)
+                for following in current.following:
+                    if (current, following) in self.reverse_edges:
+                        raise Exception("A node initiating a subflow should have all its followers going inside the subflow.")
+                        
+            else:
+                # XXX
+                current.following = [subgraph]
+                subgraph.preceding = [current]
+            
+            if dom is subgraph.end:
+                for following in dom.following[:]:
+                    if (dom, following) not in self.reverse_edges:
+                        following.replace_preceding(dom, subgraph)
+                for preceding in dom.preceding:
+                    if (preceding, dom) in self.reverse_edges:
+                        raise Exception("A node initiating a subflow should only be reachable from inside the subflow.")
+            else:
+                # XXX
+                dom.preceding = [subgraph]
+                subgraph.following = [dom]
+                
+            if self.graph_head in subgraph.closures:
+                self.graph_head = subgraph
+
+            print('sub', subgraph)
+            print('begin', subgraph.begin, subgraph.begin.preceding, subgraph.begin.following)
+            print('end', subgraph.end, subgraph.end.preceding, subgraph.end.following)
+            
+            self.subs.append(subgraph)
+            self.print_dot('dropped_{0}.dot'.format(len(self.subs)))
+            current = dom
+            
     def pack_banana(self):
         current = self.graph_head
         closures = []
@@ -275,6 +337,38 @@ class GraphWrapper: # necessarily a bananawrapper
         
         self.banana = Banana(closures)
 
+    def ordered_next(self, node):
+        """Returns next nodes in the direction of stretched order.
+        """
+        return ordered_next(node, self.reverse_edges)
+    
+    def wrap_sub(self, start, end):
+        return find_mess(start, end, self.reverse_edges)
+
+    def print_dot(self, filename):
+        if self.reverse_edges is None:
+            marked_edges = []
+        else:
+            marked_edges = [self.reverse_edges]
+        as_dot(filename, self.graph_head, marked_edges=marked_edges)
+        
+
+class BananaStructurizer(BaseBananaStructurizer):
+    def __init__(self, mess_closure):
+        self.mess_closure = mess_closure
+        self.graph_head = mess_closure.begin
+        self.graph_tail = mess_closure.end
+        self.reverse_edges = None
+        
+
+class GraphWrapper(BaseBananaStructurizer): # necessarily a bananawrapper
+    def __init__(self, graph_head):
+        self.cfg_head = graph_head
+        self.graph_head = self.wrap_graph(self.cfg_head)
+        self.graph_tail = None # TODO: should be a real node, but since this is only used for reverse edges and functions will always have an End node, should be ok for now
+        self.expand_intersections()
+        self.reverse_edges = None
+    
     def expand_intersections(self):
         """Creates ghost nodes before any node with more than 1 preceding and following, in order to allow dominator algorithms to see the links between a node start (joins) and end.
         """
@@ -329,85 +423,7 @@ class GraphWrapper: # necessarily a bananawrapper
         for ghost in self.ghosts:
             ghost.remove()
         self.ghosts = None
-
-    def mark_reverse_edges(self):
-        self.reverse_edges = find_reverse_edges(self.graph_head)
-
-    def split(self):
-        # XXX: this flow is stupid and sleepy. make it stateless and convert to passing data around
-        if self.reverse_edges is None:
-            raise RuntimeError("No reverse edges data")
-        self.subs = []
-        current = self.graph_head
-        while True:
-            # first follow forward trivial chains
-            while True:
-                nexts = list(self.ordered_next(current))
-                nexts_count = len(nexts)
-                if nexts_count == 1:
-                    current = nexts[0]
-                else:
-                    break
-            if nexts_count == 0: # end node
-                break
-            
-            # not end node, and not a trivial chain may proceed
-            dom = find_earliest_post_dominator(current, self.reverse_edges)
-            
-            if dom is None:
-                raise ValueError("Post-dominator not found for {0}".format(current))
-            subgraph = self.wrap_sub(current, dom)
-            # rewire
-
-            # Assumption: going only forward in respect to flow (only works inside bananas)
-            # take into account situation where neither current nor dom are inside, but they need a link (if-then) (XXX: this is from vague memory)
-            # FIXME: remember about reverse edges! they need to be connected on the correct side of the mess
-            if current is subgraph.begin:
-                for preceding in current.preceding[:]:
-                    if (preceding, current) not in self.reverse_edges:
-                        preceding.following.remove(current)
-                        preceding.following.append(subgraph)
-                        subgraph.preceding.append(preceding)
-                        current.preceding.remove(preceding)
-                for following in current.following:
-                    if (current, following) in self.reverse_edges:
-                        raise Exception("A node initiating a subflow should have all its followers going inside the subflow.")
-                        
-            else:
-                # XXX
-                current.following = [subgraph]
-                subgraph.preceding = [current]
-            
-            if dom is subgraph.end:
-                for following in dom.following[:]:
-                    if (dom, following) not in self.reverse_edges:
-                        following.preceding.remove(dom)
-                        following.preceding.append(subgraph)
-                        subgraph.following.append(following)
-                        dom.following.remove(following)
-                for preceding in dom.preceding:
-                    if (preceding, dom) in self.reverse_edges:
-                        raise Exception("A node initiating a subflow should only be reachable from inside the subflow.")
-            else:
-                # XXX
-                dom.preceding = [subgraph]
-                subgraph.following = [dom]
-            print('sub', subgraph)
-            print('begin', subgraph.begin, subgraph.begin.preceding, subgraph.begin.following)
-            print('end', subgraph.end, subgraph.end.preceding, subgraph.end.following)
-            
-            self.subs.append(subgraph)
-            self.print_dot('dropped_{0}.dot'.format(len(self.subs)))
-            current = dom
-    
-    def ordered_next(self, node):
-        """Returns next nodes in the direction of stretched order.
-        """
-        return ordered_next(node, self.reverse_edges)
-    
-    def wrap_sub(self, start, end):
-        return find_mess(start, end, self.reverse_edges)
-    
+        
     def wrap_graph(self, graph_head):
         node_to_closure = {}
         for node in cfg_iterator(graph_head):
@@ -422,16 +438,9 @@ class GraphWrapper: # necessarily a bananawrapper
                 closure.following.append(node_to_closure[following])
 
         return node_to_closure[graph_head]
-    
-    def print_dot(self, filename):
-        if self.reverse_edges is None:
-            marked_edges = []
-        else:
-            marked_edges = [self.reverse_edges]
-        as_dot(filename, self.graph_head, marked_edges=marked_edges)
         
         
-def find_reverse_edges(graph_head):
+def find_reverse_edges(graph_head, graph_tail):
     reverse_edges = set()
     
     def follow_func(stack):
@@ -440,12 +449,14 @@ def find_reverse_edges(graph_head):
             if not (top, next) in reverse_edges:
                 yield next
     
+    print("reverse", graph_head)
     for path, forward in iterpaths(graph_head,
                                    follow_func=follow_func,
                                    partial=True,
                                    on_backwards=True):
                           
         top = path[-1]
+        print("path", path)
         if forward:
             # when moving into depth, check paths along the way to stop before traversing them
             for next in top.following:
@@ -455,6 +466,7 @@ def find_reverse_edges(graph_head):
             # when coming back after traversing all child nodes, check the kind of an edge
             # if all following edges are reverse direction, then this one is also.
             if top.following and \
+               top is not graph_tail and \
                all(((top, next) in reverse_edges) for next in top.following):
                 # top node MUST have a parent, since there must be a split to reverse mode before it
                 # XXX: I really hope that's true
