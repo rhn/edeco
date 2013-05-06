@@ -67,7 +67,7 @@ class ConnectedMessDisplay(LooseMessDisplay):
         return ret
     
     def _get_display_followers(self, display):
-        return [self.get_display(closure) for closure in self.closure.get_followers(display.closure)]
+        return [self.get_display(closure) for closure in self.closure.get_following(display.closure)]
     
     def sort_depth_first(self):
         """Sorts the nodes within this subgraph. Depth first within this graph, sorting internals of subgraphs is their responsibility."""

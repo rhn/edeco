@@ -133,10 +133,15 @@ class LooseMess(Closure):
             self.end.preceding = preceding
     
     def replace_closures(self, replaced, replacing):
-        closures = set(self.closures)
-        closures.difference_update(replaced)
-        closures.update(replacing)
+        def replace_from_set(s, old, new):
+            return set(s).difference(old).union(new)
+
+        closures = replace_from_set(self.closures, replaced, replacing)
+        beginnings = replace_from_set(self.beginnings, replaced, replacing)
+        endings = replace_from_set(self.endings, replaced, replacing)
         self.closures = closures
+        self.beginnings = beginnings
+        self.endings = endings
     
     def reduce_straightlinks(self):
         """Finds all chains ...A->B... and wraps them into finished bananas."""

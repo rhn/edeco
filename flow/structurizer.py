@@ -280,6 +280,7 @@ class BaseBananaStructurizer:
             if dom is None:
                 raise ValueError("Post-dominator not found for {0}".format(current))
             subgraph = self.wrap_sub(current, dom)
+            print("Creating {0} in banana {1}".format(subgraph, self))
             # rewire
 
             # Assumption: going only forward in respect to flow (only works inside bananas)
@@ -359,6 +360,11 @@ class BananaStructurizer(BaseBananaStructurizer):
         self.graph_head = mess_closure.begin
         self.graph_tail = mess_closure.end
         self.reverse_edges = None
+    
+    def wrap_sub(self, start, end):
+        sub = BaseBananaStructurizer.wrap_sub(self, start, end)
+        self.mess_closure.replace_closures(sub.closures, [sub])
+        return sub
         
 
 class GraphWrapper(BaseBananaStructurizer): # necessarily a bananawrapper
@@ -449,14 +455,12 @@ def find_reverse_edges(graph_head, graph_tail):
             if not (top, next) in reverse_edges:
                 yield next
     
-    print("reverse", graph_head)
     for path, forward in iterpaths(graph_head,
                                    follow_func=follow_func,
                                    partial=True,
                                    on_backwards=True):
                           
         top = path[-1]
-        print("path", path)
         if forward:
             # when moving into depth, check paths along the way to stop before traversing them
             for next in top.following:
