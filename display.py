@@ -125,7 +125,7 @@ class ConnectedMessDisplay(LooseMessDisplay):
             inside.append(preceding_string + id_string + str(closuredisplay) + following_string)
         
         starts = self.get_starting_subdisplays()
-        starts_str = ' '.join(map(self.get_short_name, starts))
+        starts_str = ' '.join(map(lambda x: self.get_short_name(x, True), starts))
         
         return 'UnknownFlow {{\n' + indent('// Start points: ' + starts_str + '\n\n' + '\n\n'.join(inside)) + '\n}}'
 
