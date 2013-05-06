@@ -188,17 +188,11 @@ class MessStructurizer:
             
             for preceding in start.preceding[:]:
                 if preceding not in mess.closures:
-                    start.preceding.remove(preceding)
-                    preceding.following.remove(start)
-                    preceding.following.append(mess)
-                    mess.preceding.append(preceding)
+                    preceding.replace_following(start, mess)
             
             for following in end.following[:]:
                 if following not in mess.closures:
-                    end.following.remove(following)
-                    following.preceding.remove(end)
-                    following.preceding.append(mess)
-                    mess.following.append(following)
+                    following.replace_preceding(end, mess)
             print("wrapped", mess)
             raw_input()
             return mess
