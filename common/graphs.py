@@ -145,3 +145,18 @@ def as_dot(filename, graph_head, marked_nodes=None, marked_edges=None):
         graph.add_edge(dot_edge)
     
     graph.write(filename)
+    
+    
+def verify_graph_correct(begin):
+    """Travels along all edges, checks if all edges go in both directions."""
+    # TODO: follow function should go in both directions
+    def follow_iter(stack):
+        head = stack[-1]
+        return head.following + head.preceding
+    for node in iternodes(begin):
+        for follower in node.following:
+            if not node in follower.preceding:
+                raise Exception("{0} links to {1}, but no backlink".format(node, follower))
+        for preceder in node.preceding:
+            if not node in preceder.following:
+                raise Exception("{0} linked from {1}, but no forward link".format(node, preceder))
