@@ -118,6 +118,34 @@ class CallInstruction(BaseInstruction):
         return True
 
 
+class Repeater(BaseInstruction):
+    """A proxy for repeated instructions"""
+    repeater_names = ['repz']
+    supported_insns = ['ret', 'retq']
+    def __init__(self, arch, address, opcode, repeater, instruction):
+        mnemonic = instruction[0]
+        if mnemonic in self.repeater_names:
+            raise ValueError("Instruction prefixed with {0} can't have {1} as mnemonic.".format(repeater, mnemonic))
+        operands = instruction[1:]
+        BaseInstruction.__init__(self, arch, address, opcode, repeater + ' ' + mnemonic, operands)
+        
+        insn_map = {}
+        for insn_name, insn_class in instruction_map.items():
+            if insn_name in self.supported_insns:
+                insn_map[insn_name] = insn_class
+        
+        self.instruction = instructions.Instruction(arch, address, opcode, mnemonic, operands, insn_map, SimpleInstruction)
+    
+    def jumps(self):
+        return self.instruction.jumps()
+    
+    def breaks_function(self):
+        return self.instruction.breaks_function()
+    
+    def calls_function(self):
+        return self.instruction.calls_function()
+
+
 instruction_map = {'ret': RetInstruction,
                    'retq': RetInstruction,
                    'call': CallInstruction,
@@ -129,7 +157,8 @@ instruction_map = {'ret': RetInstruction,
                    'je': CondJumpInstruction,
                    'jl': CondJumpInstruction,
                    'ja': CondJumpInstruction,
-                   'jns': CondJumpInstruction}
+                   'jns': CondJumpInstruction,
+                   'repz': Repeater}
                    
 
 def Instruction(address, opcode, mnemonic, operands):
