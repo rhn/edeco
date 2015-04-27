@@ -1,4 +1,4 @@
-from parser.common import *
+from parsers.common import *
 
 
 def parse_line(arch, disasmline):
