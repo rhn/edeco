@@ -7,7 +7,10 @@ def parse_line(arch, disasmline):
     address: opcode  FLAGS mnemonic operand1 operand2
     flags: uppercase, instruction: lowercase
     """
-    addr, rest = disasmline.split(':', 1)
+    try:
+        addr, rest = disasmline.split(':', 1)
+    except ValueError as e:
+        raise ParsingError("Line {!r} is not an instruction".format(repr(disasmline))
     try:
         opcode, rest = rest.strip().split("  ", 1)
     except ValueError, e:
