@@ -51,7 +51,7 @@ if __name__ == '__main__':
     with open(args.deasm) as deasm:
         data = deasm.readlines()
 
-    instructions = insn_parser.parse_instructions(arch, data)
+    instructions = insn_parser.parse_instructions(insn_parser, arch, data)
 
     function_mapping = {}
     if args.cmap:
